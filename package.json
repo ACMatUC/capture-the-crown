@@ -1,0 +1,14 @@
+{
+  "name": "capture-the-crown",
+  "version": "1.0.0",
+  "description": "A teaching project for a 60-minute WebSocket networking workshop, disguised as a tiny multiplayer game.",
+  "main": "server/server.js",
+  "scripts": {
+    "start": "node server/server.js",
+    "server": "node server/server.js"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.17.0"
+  }
+}

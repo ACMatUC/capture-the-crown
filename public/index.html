@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Capture the Crown &mdash; Networking Lab</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-title">
+      <span class="crown-icon">&#9819;</span>
+      Capture the Crown
+      <span class="subtitle">a WebSocket networking lab</span>
+    </div>
+    <div class="topbar-status">
+      <span id="connectionDot" class="status-dot status-disconnected"></span>
+      <span id="connectionLabel">disconnected</span>
+    </div>
+  </header>
+
+  <main class="layout">
+
+    <!-- ============================================================
+         JOIN SCREEN
+         Shown before the player has sent a "join" message. This is
+         the only screen with a traditional HTML form-like control.
+         ============================================================ -->
+    <section id="joinScreen" class="join-screen">
+      <h1>Enter the arena</h1>
+      <p>Enter the server PC's LAN WebSocket address, then pick a name.</p>
+      <input id="serverUrlInput" type="text" placeholder="ws://10.x.x.x:3000" autocomplete="off" spellcheck="false">
+      <input id="nameInput" type="text" maxlength="16" placeholder="Your name" autocomplete="off">
+      <p id="joinError" class="join-error" aria-live="polite"></p>
+      <button id="joinButton">Connect &amp; Join</button>
+    </section>
+
+    <!-- ============================================================
+         GAME SCREEN
+         Hidden until "welcome" arrives from the server.
+         ============================================================ -->
+    <section id="gameScreen" class="game-screen hidden">
+
+      <div class="board-area">
+        <canvas id="gameCanvas" width="800" height="600"></canvas>
+        <div class="controls-hint">Move with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrow keys</div>
+      </div>
+
+      <aside class="side-panel">
+
+        <div class="panel-block">
+          <h2>Scoreboard</h2>
+          <ol id="scoreboard" class="scoreboard-list"></ol>
+        </div>
+
+        <div class="panel-block">
+          <div class="panel-header-row">
+            <h2>Network Debug</h2>
+            <label class="debug-toggle">
+              <input type="checkbox" id="debugToggle" checked>
+              live
+            </label>
+          </div>
+          <dl class="debug-grid">
+            <dt>connection</dt><dd id="dbgConnection">&mdash;</dd>
+            <dt>player id</dt><dd id="dbgPlayerId">&mdash;</dd>
+            <dt>ping</dt><dd id="dbgPing">&mdash;</dd>
+            <dt>players online</dt><dd id="dbgPlayers">&mdash;</dd>
+            <dt>messages sent</dt><dd id="dbgSent">0</dd>
+            <dt>messages received</dt><dd id="dbgReceived">0</dd>
+          </dl>
+
+          <h3>Last message sent (SEND)</h3>
+          <pre id="dbgLastSent" class="debug-json">&mdash;</pre>
+
+          <h3>Last message received (RECV)</h3>
+          <pre id="dbgLastReceived" class="debug-json">&mdash;</pre>
+        </div>
+
+      </aside>
+    </section>
+
+  </main>
+
+  <!--
+    Script load order matters here because we are NOT using ES modules or
+    a bundler -- these are plain <script> tags, so each file's top-level
+    functions/variables become available to the ones loaded after it.
+
+    networking.js     -> loaded first; documents the protocol + owns the socket
+    debug.js          -> debug overlay state + rendering, no dependencies
+    networking.js     -> the WebSocket connection itself
+    input.js          -> keyboard -> "input" messages
+    renderer.js        -> draws the latest state onto the canvas
+    main.js           -> wires everything above together
+  -->
+  <script src="networking.js"></script>
+  <script src="debug.js"></script>
+  <script src="input.js"></script>
+  <script src="renderer.js"></script>
+  <script src="main.js"></script>
+</body>
+</html>

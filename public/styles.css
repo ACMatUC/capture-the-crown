@@ -1,0 +1,301 @@
+/* ============================================================================
+   styles.css
+
+   Visual language: this is a lab instrument, not a game menu. Dark
+   "oscilloscope" background, a single amber accent for anything live/
+   active, monospace type wherever real network data is shown (JSON,
+   ids, numbers) so it visually reads as "raw data" versus the sans-serif
+   used for human-facing labels. Nothing here affects the networking
+   lesson -- style freely if you want to make it your own.
+   ============================================================================ */
+
+:root {
+  --bg: #0b0e12;
+  --panel: #12161c;
+  --panel-border: #232a34;
+  --ink: #e7ebf0;
+  --ink-dim: #7c8896;
+  --amber: #ffb454;
+  --amber-dim: #8a6a3c;
+  --green: #5fd39a;
+  --red: #ef6a6a;
+  --crown-gold: #f2c14e;
+
+  --font-ui: "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "SFMono-Regular", "Consolas", "Menlo", monospace;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-ui);
+}
+
+/* ---------------------------------------------------------------- topbar */
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--panel-border);
+  background: linear-gradient(180deg, #14181f, #0f1217);
+}
+
+.topbar-title {
+  font-size: 18px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.crown-icon { color: var(--crown-gold); font-size: 20px; }
+
+.subtitle {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+}
+
+.topbar-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  color: var(--ink-dim);
+}
+
+.status-dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.status-connected { background: var(--green); box-shadow: 0 0 8px var(--green); }
+.status-disconnected { background: var(--red); }
+.status-connecting { background: var(--amber); animation: pulse 1s infinite; }
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* ---------------------------------------------------------------- layout */
+
+.layout {
+  display: flex;
+  justify-content: center;
+  padding: 32px 24px;
+}
+
+.hidden { display: none !important; }
+
+/* ---------------------------------------------------------------- join screen */
+
+.join-screen {
+  max-width: 420px;
+  margin-top: 60px;
+  text-align: center;
+}
+
+.join-screen h1 {
+  font-size: 26px;
+  margin-bottom: 8px;
+}
+
+.join-screen p {
+  color: var(--ink-dim);
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 24px;
+}
+
+#nameInput,
+#serverUrlInput {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 15px;
+  border-radius: 6px;
+  border: 1px solid var(--panel-border);
+  background: var(--panel);
+  color: var(--ink);
+  margin-bottom: 12px;
+}
+#serverUrlInput {
+  font-family: var(--font-mono);
+}
+#nameInput:focus,
+#serverUrlInput:focus { outline: 2px solid var(--amber-dim); }
+
+.join-error {
+  min-height: 20px;
+  margin: -4px 0 12px 0;
+  color: var(--red);
+  font-size: 12px;
+}
+
+#joinButton {
+  width: 100%;
+  padding: 12px 14px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 6px;
+  border: none;
+  background: var(--amber);
+  color: #1a1204;
+  cursor: pointer;
+}
+#joinButton:hover { filter: brightness(1.08); }
+#joinButton:active { transform: translateY(1px); }
+#joinButton:focus-visible { outline: 3px solid var(--ink); }
+#joinButton:disabled {
+  cursor: wait;
+  filter: grayscale(0.35) brightness(0.7);
+}
+
+/* ---------------------------------------------------------------- game screen */
+
+.game-screen {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.board-area { display: flex; flex-direction: column; gap: 8px; }
+
+#gameCanvas {
+  background: #05070a;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  display: block;
+}
+
+.controls-hint {
+  font-size: 12px;
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+}
+.controls-hint kbd {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 3px;
+  padding: 1px 6px;
+  margin: 0 1px;
+  font-family: var(--font-mono);
+}
+
+/* ---------------------------------------------------------------- side panel */
+
+.side-panel {
+  width: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel-block {
+  background: var(--panel);
+  border: 1px solid var(--panel-border);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.panel-block h2 {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--ink-dim);
+  margin: 0 0 12px 0;
+}
+
+.panel-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.debug-toggle {
+  font-size: 12px;
+  color: var(--ink-dim);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+}
+
+.scoreboard-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.scoreboard-list li {
+  display: flex;
+  justify-content: space-between;
+  font-size: 14px;
+  padding: 6px 8px;
+  border-radius: 4px;
+  background: rgba(255,255,255,0.02);
+}
+.scoreboard-list .score-value {
+  font-family: var(--font-mono);
+  color: var(--amber);
+}
+.scoreboard-list .is-you {
+  border: 1px solid var(--amber-dim);
+}
+
+.debug-grid {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 4px 10px;
+  margin: 0 0 12px 0;
+  font-size: 12.5px;
+}
+.debug-grid dt { color: var(--ink-dim); }
+.debug-grid dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  text-align: right;
+  color: var(--ink);
+}
+
+.panel-block h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-dim);
+  margin: 12px 0 6px 0;
+}
+
+.debug-json {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  line-height: 1.4;
+  background: #05070a;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  padding: 8px;
+  margin: 0;
+  color: var(--green);
+  max-height: 90px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+@media (max-width: 880px) {
+  .game-screen { flex-direction: column; align-items: center; }
+  .side-panel { width: 100%; max-width: 800px; }
+  #gameCanvas { width: 100%; height: auto; }
+}
