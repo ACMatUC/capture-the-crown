@@ -44,7 +44,8 @@
 //
 // dx and dy are each one of -1, 0, or 1 (a simple direction, not a real
 // physics vector). The SERVER decides how far that translates to in
-// pixels -- see constants.js PLAYER_SPEED.
+// pixels -- see constants.js PLAYER_SPEED. A member-authored strategy may
+// choose these directions, but it cannot send a position or score.
 //
 // Shape:
 // {
@@ -76,7 +77,7 @@
 // THE most important message in this entire project. Broadcast to every
 // connected client on every server tick (see constants.js TICK_RATE). It
 // contains the full, authoritative snapshot of the entire game world:
-// every player's position, name and score, plus the crown's position.
+// every player's position, name and score, plus every coin's position.
 //
 // The client does nothing clever with this -- it just throws away
 // whatever it drew last frame and redraws using these exact numbers. This
@@ -90,7 +91,10 @@
 //     { "id": "player-1", "name": "Alice", "x": 120, "y": 340, "score": 2 },
 //     { "id": "player-2", "name": "Bob",   "x": 500, "y": 220, "score": 0 }
 //   ],
-//   "crown": { "x": 400, "y": 300 }
+//   "coins": [
+//     { "id": "coin-1", "x": 400, "y": 300 },
+//     { "id": "coin-2", "x": 120, "y": 80 }
+//   ]
 // }
 // ----------------------------------------------------------------------------
 

@@ -47,7 +47,7 @@ function colorForPlayer(id) {
  *
  * RECEIVES:
  *   ctx (CanvasRenderingContext2D)
- *   state ({ players: [...], crown: {x,y} }) -- see protocol.js
+ *   state ({ players: [...], coins: [...] }) -- see protocol.js
  *   myPlayerId (string|null) -- used to highlight "you" on the board.
  * RETURNS: nothing.
  */
@@ -58,8 +58,8 @@ function drawFrame(ctx, state, myPlayerId) {
   ctx.clearRect(0, 0, width, height);
   drawGrid(ctx, width, height);
 
-  if (state.crown) {
-    drawCrown(ctx, state.crown);
+  for (const coin of state.coins || []) {
+    drawCoin(ctx, coin);
   }
 
   for (const player of state.players) {
@@ -134,17 +134,17 @@ function drawPlayer(ctx, player, isMe) {
 }
 
 /**
- * drawCrown(ctx, crown)
+ * drawCoin(ctx, coin)
  *
- * WHAT IT DOES: draws the shared crown as a simple gold diamond.
- * RECEIVES: ctx, crown ({x, y}).
+ * WHAT IT DOES: draws one shared coin as a simple gold diamond.
+ * RECEIVES: ctx, coin ({id, x, y}).
  * RETURNS: nothing.
  */
-function drawCrown(ctx, crown) {
+function drawCoin(ctx, coin) {
   const size = 12;
 
   ctx.save();
-  ctx.translate(crown.x, crown.y);
+  ctx.translate(coin.x, coin.y);
   ctx.rotate(Math.PI / 4);
   ctx.fillStyle = "#f2c14e";
   ctx.fillRect(-size / 2, -size / 2, size, size);
@@ -153,9 +153,8 @@ function drawCrown(ctx, crown) {
   // ==========================================================
   // WORKSHOP EXERCISE #3
   // ==========================================================
-  // The server's "state" message currently sends { x, y } for the crown.
-  // Try having the server ALSO send a "spawnedAt" timestamp (a small
-  // change to server/crown.js's createCrown() and server/game.js's
-  // getStateSnapshot()), then draw something here based on how long ago
-  // the crown spawned -- e.g. make it pulse right after it respawns.
+  ctx.fillStyle = "rgba(255,255,255,0.7)";
+  ctx.font = "10px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText(coin.id.replace("coin-", "#"), coin.x, coin.y + size + 12);
 }

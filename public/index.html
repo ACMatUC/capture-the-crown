@@ -49,8 +49,19 @@
       <aside class="side-panel">
 
         <div class="panel-block">
-          <h2>Scoreboard</h2>
+          <h2>Leaderboard</h2>
+          <p class="leaderboard-help">Collect any of the 10 coins. Ties share a rank.</p>
+          <label class="strategy-toggle">
+            <input type="checkbox" id="strategyToggle">
+            run my strategy code
+          </label>
           <ol id="scoreboard" class="scoreboard-list"></ol>
+        </div>
+
+        <div class="panel-block">
+          <h2>Live locations</h2>
+          <p class="leaderboard-help">Everyone sees every player and coin.</p>
+          <ul id="locationSummary" class="location-list"></ul>
         </div>
 
         <div class="panel-block">
@@ -91,12 +102,14 @@
     debug.js          -> debug overlay state + rendering, no dependencies
     networking.js     -> the WebSocket connection itself
     input.js          -> keyboard -> "input" messages
+    strategy.js       -> member-authored strategy -> "input" messages
     renderer.js        -> draws the latest state onto the canvas
     main.js           -> wires everything above together
   -->
   <script src="networking.js"></script>
   <script src="debug.js"></script>
   <script src="input.js"></script>
+  <script src="strategy.js"></script>
   <script src="renderer.js"></script>
   <script src="main.js"></script>
 </body>

@@ -1,10 +1,10 @@
 # Capture the Crown
 
-A tiny browser multiplayer game built for one purpose: teaching the
-fundamentals of real-time networking with WebSockets. The "game" itself is
-deliberately trivial (move a circle, touch a crown, score a point) so that
-every line of interesting code is about **networking**, not game
-development.
+A tiny browser multiplayer game built for a Student Club General Body Meeting:
+members play together, learn real-time networking with WebSockets, and make a
+small visible code change. The "game" is deliberately simple (move a circle,
+collect one of ten visible coins, score a point) so beginners can focus on the
+idea and finish with something they can demo.
 
 This version is a true LAN client-server workshop app:
 
@@ -16,9 +16,11 @@ This version is a true LAN client-server workshop app:
 - No cloud services, tunneling, NAT traversal, or peer-to-peer networking
   are used.
 
-If you're looking for the workshop lesson plan and concept explanations,
-see **[WorkshopGuide.md](./WorkshopGuide.md)**. This file just covers
-running the project.
+If you're organizing the event, start with **[WorkshopGuide.md](./WorkshopGuide.md)**.
+It contains the 30-minute agenda, facilitator prompts, individual build
+challenge, open-play competition rules, leaderboard procedure, setup
+checklist, and troubleshooting flow. This file covers the
+technical setup.
 
 ## Requirements
 
@@ -76,6 +78,10 @@ Find the server PC's LAN IP address, such as `10.x.x.x` or
 `192.168.x.x`. Do not give students `localhost` or `127.0.0.1`; those
 addresses point back at each student's own machine.
 
+For the recommended club meeting, start the server before members arrive,
+keep this terminal visible, and have two or three test browsers ready. The
+first activity is to play for a few minutes before opening the code.
+
 ## Starting Client PCs
 
 On each client PC:
@@ -95,6 +101,30 @@ Every client connects directly to the same server PC over the university
 LAN. Clients can be opened before the server starts; they will show
 `disconnected` until the server is running and the student clicks
 **Connect & Join** again.
+
+### Recommended 30-minute GBM sequence
+
+1. **Play (0-3 min):** connect everyone and let them chase the crown.
+2. **Reveal (3-11 min):** use the debug panel to show `input` and `state`
+   messages, then trace one key press through the client and server.
+3. **Build (11-19 min):** edit `public/strategy.js` to make the player
+   navigate toward crowns automatically. Members can still customize
+   `public/renderer.js` for appearance.
+4. **Code freeze (19-20 min):** save, refresh, and stop editing.
+5. **Crown Clash (20-27 min):** open play; the live ranked leaderboard decides
+   the standings. The facilitator announces start and stop.
+6. **Awards (27-30 min):** recognize the top scorer, creative builds, and
+   helpful teammates; share one takeaway.
+
+### Competition checklist
+
+- Announce the code freeze before the competition starts.
+- Have everyone refresh or reconnect with their final build.
+- Use the **Leaderboard** panel as the official score source.
+- Equal scores share a rank.
+- Announce the final standings and optional awards.
+- To reset for a new event, stop and restart `npm start`, then reconnect all
+  clients. Scores are held in server memory and do not persist across restarts.
 
 You can also prefill the server field with a query string:
 
@@ -116,7 +146,7 @@ capture-the-crown/
     game.js             the authoritative game loop (20 ticks/second)
     protocol.js         documents & validates every message type
     player.js           player data + movement
-    crown.js            crown data + pickup detection
+    crown.js            coin data + pickup detection
     constants.js        tunable numbers (speed, tick rate, arena size)
 
   public/               browser-only client files for each client PC
@@ -125,6 +155,7 @@ capture-the-crown/
     main.js             wires all client files together
     networking.js       owns the browser's WebSocket connection
     input.js            keyboard -> "input" messages
+    strategy.js         member-authored movement strategy
     renderer.js         draws the current state onto <canvas>
     debug.js            the on-page network debug panel
 ```
@@ -165,3 +196,19 @@ Workshop Exercise #5 and forgot to change it back, that's why.
 The Node.js server does not hot-reload. Stop it with `Ctrl+C` in its
 terminal and run `npm start` again after any change to files inside
 `server/`. Changes to files inside `public/` only need a browser refresh.
+
+## Code-powered competition
+
+Members can make their code affect their Crown Clash result without giving
+the browser authority over the game. Each client includes `public/strategy.js`,
+where `chooseDirection(state, me)` returns a direction toward a coin. The
+strategy receives all player locations and all ten coin locations, so it can
+choose targets, avoid traffic, and plan routes. Turn on **run my strategy
+code** after joining to use it instead of the keyboard.
+
+The strategy receives the latest server snapshot and may only request
+`dx`/`dy` values of `-1`, `0`, or `1`. The server still applies movement,
+checks coin collisions, respawns only the collected coin, and awards points.
+A strategy cannot claim a position, change a score, or affect another player.
+This keeps the result competitive while making a member's code materially
+important.

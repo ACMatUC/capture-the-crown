@@ -98,6 +98,18 @@ html, body {
 
 .hidden { display: none !important; }
 
+.strategy-toggle {
+  display: block;
+  margin: 10px 0 12px;
+  color: var(--amber);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.strategy-toggle input {
+  accent-color: var(--amber);
+}
+
 /* ---------------------------------------------------------------- join screen */
 
 .join-screen {
@@ -241,11 +253,24 @@ html, body {
 }
 .scoreboard-list li {
   display: flex;
-  justify-content: space-between;
+  align-items: center;
   font-size: 14px;
   padding: 6px 8px;
   border-radius: 4px;
   background: rgba(255,255,255,0.02);
+}
+.leaderboard-help {
+  color: var(--ink-dim);
+  font-size: 11px;
+  margin: -6px 0 10px 0;
+}
+.leaderboard-rank {
+  width: 30px;
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+}
+.leaderboard-name {
+  flex: 1;
 }
 .scoreboard-list .score-value {
   font-family: var(--font-mono);
@@ -253,6 +278,29 @@ html, body {
 }
 .scoreboard-list .is-you {
   border: 1px solid var(--amber-dim);
+}
+
+.location-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  color: var(--ink-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+.location-list li {
+  line-height: 1.35;
+}
+.location-list .is-you {
+  color: var(--ink);
+}
+.location-list .coin-locations {
+  color: var(--amber);
+  border-top: 1px solid var(--panel-border);
+  padding-top: 6px;
 }
 
 .debug-grid {

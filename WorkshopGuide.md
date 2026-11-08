@@ -1,264 +1,243 @@
-# Workshop Guide: Networking Fundamentals with Capture the Crown
+# Capture the Crown: 30-Minute Club GBM
 
-This guide is for instructors and students working through the 60-minute
-workshop. It assumes students know basic JavaScript but have never used
-WebSockets or built anything multiplayer/real-time before.
+This is a play-first, beginner-friendly General Body Meeting for a student
+club. Members will play a tiny multiplayer game, learn how browsers and
+servers communicate in real time, and make one visible code change they can
+demo before leaving.
 
-The game is not the lesson. The game is a visible, pokeable demonstration
-of a client-server networking system. Every section below ties a concept
-back to a specific file and line of code you can open right now.
+The project is intentionally small: one Node.js server, several browser
+clients, and raw WebSocket messages. No database, framework, or cloud account
+is needed.
 
----
+## What members should leave knowing
 
-## 1. Client-server architecture
+By the end, a member should be able to:
 
-In this project there are two kinds of programs:
-
-- **One server** (`server/server.js` and friends) — a single Node.js
-  process on one university PC that is the source of truth for the entire
-  game world.
-- **Many clients** — browser pages opened from `public/index.html` on
-  other university PCs. Each client connects to
-  `ws://<SERVER_IP>:<PORT>`, where `<SERVER_IP>` is the server PC's LAN IP.
-
-Clients never talk to each other directly. They only talk to the server.
-The server decides what's true (where everyone is, who has the crown,
-what the score is) and tells every client. This is called a
-**client-server** architecture, as opposed to **peer-to-peer**, where
-clients would talk directly to one another.
-
-**Why use a server at all?** Try to imagine the alternative: if each
-client tracked its own position and just broadcast it to every other
-client, what stops one client from lying about its position, or claiming an
-impossibly high score? A server gives you one place to enforce the rules.
-
----
-
-## 2. Request/response vs. real-time communication
-
-Opening `public/index.html` in your browser loads local static files. That
-initial page load is separate from the networked game. The actual
-multiplayer connection begins only when the browser opens a WebSocket to
-the server PC.
-
-That model doesn't work well for a multiplayer game, where the server
-needs to push new information (another player moved!) to your browser
-*without* your browser having to ask for it first. That's what
-**WebSockets** are for — see the next section.
-
----
-
-## 3. WebSockets
-
-A WebSocket connection starts as a normal HTTP request that gets
-"upgraded" into a persistent, two-way connection. Once open:
-
-- Either side (client or server) can send a message at any time.
-- Messages arrive without the other side having to ask/poll for them.
-- The connection stays open until explicitly closed.
-
-In this project:
-
-- **Server side:** `server/networking.js` uses the `ws` library to accept
-  LAN connections (`new WebSocket.Server(...)`) and send/receive messages.
-- **Client side:** `public/networking.js` uses the browser's built-in
-  `WebSocket` object (`new WebSocket(serverUrl)`) — no library needed at
-  all, it's part of every modern browser.
-
-Open your browser's DevTools → Network tab → filter by "WS" while playing
-to see the raw WebSocket connection and its frames.
-
----
-
-## 4. JSON messages
-
-WebSockets transmit raw text (or binary) — they have no built-in concept
-of "messages" with structure. We impose that structure ourselves by
-agreeing that every message is a JSON object with a `type` field.
-
-- `JSON.stringify(obj)` turns a JS object into text before sending —
-  called **serialization**.
-- `JSON.parse(text)` turns received text back into a JS object — called
-  **deserialization**.
-
-Every message type this project uses is documented in
-`server/protocol.js` (and mirrored, from the client's point of view, at
-the top of `public/networking.js`). Read that file start to finish before
-touching any other code — it's the contract everything else depends on.
-
----
-
-## 5. Client → server: sending input
-
-The client is only ever allowed to send two kinds of messages:
-
-- `join` — once, when you click "Connect & Join" (`public/networking.js`,
-  `connectToServer`)
-- `input` — whenever your held movement keys change
-  (`public/input.js`, `updateAndSendInput`)
-
-Notice `input` messages say "I want to move this direction," never "I am
-now at this position." The client makes a *request*; it never asserts a
-*fact* about the world.
-
----
-
-## 6. Server → client: receiving synchronized state
-
-`server/game.js` runs a loop 20 times per second (`TICK_RATE` in
-`server/constants.js`) that:
-
-1. Moves every player according to their last known input.
-2. Checks if anyone touched the crown.
-3. Builds one JSON snapshot of the whole world (`getStateSnapshot()`).
-4. Broadcasts that snapshot to every connected client as a `state`
+1. Explain the difference between a browser client and the authoritative
+   server.
+2. Point to a client-to-server `input` message and a server-to-client `state`
    message.
+3. Make and demo a small visual change in `public/renderer.js`.
 
-Every client receives the *exact same* `state` message at roughly the
-same time. That shared broadcast is what "synchronization" means in
-practice — nobody's screen is a special case.
+No previous networking experience is required. Basic JavaScript familiarity is
+helpful, but the activity is designed so members can copy a starter change and
+then experiment.
 
----
+## Before the GBM
 
-## 7. Server-authoritative game state
+### Organizer checklist
 
-"Server-authoritative" means the server's copy of the game world is the
-only one that counts. Look at `public/renderer.js`'s `drawFrame()`: it
-does not calculate anything, it only draws exactly what the last `state`
-message said. If you disconnect your network (or the server crashes), the
-canvas simply freezes — nothing on screen can move without the server
-saying so first. That's a deliberate, visible proof of server authority
-you can demonstrate live.
+- Choose one laptop as the server PC and connect every laptop to the same LAN.
+- Install Node.js 18+ on the server PC.
+- Clone or copy this repository to the server PC.
+- Run `npm install` once.
+- Find the server PC's LAN IP address. Do not use `localhost`.
+- Bring one backup copy of the project and a screenshot of the expected game.
+- If the university network blocks device-to-device traffic, use a small
+  private hotspot/router approved by your club or IT policy.
 
-Compare this to `server/player.js`'s `movePlayer()` — the *only* function
-in the entire codebase that changes a player's `x`/`y`, and it only runs
-inside the server's tick loop.
+### Start the server
 
----
+On the server PC:
 
-## 8. How multiple clients stay synchronized
+```bash
+npm install
+npm start
+```
 
-Because every client redraws itself purely from the most recently
-received `state` broadcast, and every client receives the same
-broadcasts, all client PCs converge on the same picture of the world —
-usually within one tick (50ms at the default 20Hz tick rate) of each
-other. There's no negotiation between clients and no merging of
-conflicting data, because clients never had authority over the data in
-the first place.
+The terminal prints the port and reminds you to use the server PC's LAN IP.
+Keep this terminal visible: its `[SEND]` and `[RECV]` logs are useful teaching
+material.
 
----
+On every client PC, open `public/index.html` in a modern browser. Enter:
 
-## 9. Reading and modifying networking code
+```text
+ws://SERVER_LAN_IP:3000
+```
 
-The whole project is intentionally split so that "networking" and "game
-rules" never live in the same function:
+Then enter a name and click **Connect & Join**. If the browser cannot connect,
+check the IP, port, shared network, and firewall prompt on the server PC.
 
-| Concern | Server file | Client file |
+## The 30-minute run of show
+
+| Time | Activity | Facilitator move |
 |---|---|---|
-| Owns the socket / sends & receives messages | `server/networking.js` | `public/networking.js` |
-| Defines what messages look like | `server/protocol.js` | (documented in `public/networking.js`) |
-| Game rules (movement, scoring) | `server/game.js`, `player.js`, `crown.js` | — (client has no rules) |
-| Drawing / UI | — (server draws nothing) | `public/renderer.js`, `debug.js`, `main.js` |
+| 0-3 min | Welcome and play | Put members in the arena immediately. Ask, “What do you think is happening between these screens?” |
+| 3-7 min | Two-minute networking reveal | Explain client, server, WebSocket, and JSON using the live debug panel. Avoid a long lecture. |
+| 7-11 min | Trace one move | Open `public/input.js`, `server/networking.js`, `server/game.js`, and `public/renderer.js`. Follow one key press to one visible move. |
+| 11-19 min | Individual build challenge | Members edit `public/strategy.js`, enable strategy mode, and test whether their code reaches crowns faster; optional visual changes stay in `public/renderer.js`. |
+| 19-20 min | Code freeze | Ask everyone to save, refresh, and stop editing. Announce that the competition leaderboard is now live. |
+| 20-27 min | Open-play competition | Members chase crowns. Call out the leaderboard, encourage fair play, and announce the final standings at the end. |
+| 27-30 min | Awards and takeaway | Recognize the top scorer and creative builds, then re-state server authority and collect next-feature ideas. |
 
-When you want to see "what happens when a player moves," you should be
-able to answer it by reading exactly two files:
-`public/input.js` (send) and `server/game.js` + `server/player.js`
-(receive & apply).
+If setup takes longer, skip the file walkthrough before skipping build time.
+The best GBM outcome is that every member gets a working result and a chance
+to compete with it.
 
----
+## The live explanation
 
-## 10. Debugging networking applications
+Use the game to explain three ideas:
 
-Two tools are built into this project specifically for debugging:
+### 1. The client asks; the server decides
 
-- **The server terminal** — every message in or out is logged as
-  `[SEND]`/`[RECV]` with its full JSON, from `server/networking.js`'s
-  `logDebug()`.
-- **The in-browser Network Debug panel** — connection status, your player
-  id, ping, live counters, and the literal last message sent/received, all
-  driven by `public/debug.js`.
+When a member presses a key, `public/input.js` sends a small message such as:
 
-When something isn't working, the standard debugging move in this
-project is: **compare what was actually sent against what the receiving
-side expects**, using these two panels side by side. This mirrors real
-network debugging, where you'd reach for a tool like a browser's Network
-tab or `wireshark` to inspect actual traffic rather than guessing.
-
----
-
-## Project walkthrough (suggested live-code order)
-
-1. `server/protocol.js` — what messages exist
-2. `server/server.js` — how the server starts
-3. `server/networking.js` — how connections and messages are handled
-4. `server/game.js` + `player.js` + `crown.js` — the authoritative loop
-5. `public/networking.js` — how the client connects and sends/receives
-6. `public/input.js` — turning keystrokes into an `input` message
-7. `public/renderer.js` — turning a `state` message into pixels
-8. `public/debug.js` + `main.js` — tying it all together, and how to see
-   it happen live
-
----
-
-## Message flow, end to end
-
-```
-   CLIENT PC A                       SERVER                     CLIENT PC B
-        |                               |                               |
-        |------ join {name:"Alice"} --->|                               |
-        |<----- welcome {id} -----------|                               |
-        |                               |<---- join {name:"Bob"} -------|
-        |                               |------ welcome {id} ---------->|
-        |<----- playerJoined -----------|------ playerJoined ---------->|
-        |                               |                               |
-        |------ input {dx:1,dy:0} ----->|                               |
-        |                               |  (tick loop moves Alice)      |
-        |<----- state {...} ------------|------ state {...} ----------->|
-        |<----- state {...} ------------|------ state {...} ----------->|
-        |                (repeats ~20 times per second forever)         |
+```json
+{ "type": "input", "dx": 1, "dy": 0 }
 ```
 
----
+It does not send a new position or score. The server applies the request in
+its fixed tick loop. This prevents a client from claiming an impossible
+position or score.
 
-## Suggested 60-minute timeline
+### 2. The server broadcasts the shared state
 
-| Time | Activity |
-|---|---|
-| 0–5 min | Start one server PC with `npm install && npm start`, open `public/index.html` on 2–3 client PCs, connect them to `ws://<SERVER_IP>:3000`, and just play. Frame the question: "how did that just happen?" |
-| 5–15 min | Sections 1–4 above: client-server, request/response vs real-time, WebSockets, JSON. Live-code walkthrough of `protocol.js`. |
-| 15–25 min | Sections 5–6: walk through `input.js` → `server/networking.js` → `game.js` → back out to `state`. Show the server terminal's SEND/RECV logs live. |
-| 25–35 min | Sections 7–8: server authority + synchronization. Demo: disconnect wifi/kill the server and show the canvas freeze. |
-| 35–50 min | Hands-on: students work through Exercises #1–#6 individually or in pairs. |
-| 50–58 min | Hands-on: Exercise #9 (intentionally break a message, then fix it) as a group debugging exercise using both debug panels. |
-| 58–60 min | Wrap-up + questions. |
+About 20 times per second, `server/game.js` moves players, checks all ten
+coins, and broadcasts a `state` message containing every player's position
+and score plus every coin's position. Each browser draws the latest state.
+That is why everyone sees the same coins and players.
 
-Adjust freely — if your group is faster, add Exercises #7, #8, #10.
+### 3. Network traffic is observable
 
----
+The **Network Debug** panel shows the connection, ping, message counters, and
+last JSON messages. Ask members to watch `input` appear when they press or
+release a movement key, then watch `state` arrive from the server.
 
-## Exercise reference
+## Individual build challenge
 
-All exercises are marked in the code with:
+### Competition starter: write a coin-chasing strategy
 
+Open `public/strategy.js`. The starter `chooseDirection(state, me)` chooses
+the nearest coin from `state.coins` and returns a legal direction. After
+joining, enable **run my strategy code**. Your code now chooses the movement
+requests sent to the server, so better decisions can produce more points.
+
+Try improving the strategy by:
+
+- Choosing horizontal or vertical movement based on which distance is larger.
+- Avoiding another player when they are closer to a coin.
+- Choosing a safer coin instead of always choosing the nearest one.
+
+The strategy can inspect state, but it can only return `{ dx, dy }`, with each
+value in `-1`, `0`, or `1`. The server remains authoritative: it decides the
+actual movement, collision, and score. Do not edit the server or send fake
+positions/scores during the competition.
+
+### Starter: make score visible on the player
+
+Open `public/renderer.js` and find `drawPlayer`. Replace:
+
+```js
+const radius = 16;
 ```
-// ==========================================================
-// WORKSHOP EXERCISE #N
-// ==========================================================
+
+with:
+
+```js
+const radius = 16 + player.score * 2;
 ```
 
-| # | File | What it teaches |
-|---|---|---|
-| 1 | `public/networking.js` | Reading an incoming message type you haven't handled yet (`playerJoined`/`playerLeft`) — practice with `handleIncomingMessage`. |
-| 2 | `public/input.js` | Seeing what it would take to add a new field to an outgoing message, and tracing where it would need to be read on the server. |
-| 3 | `public/renderer.js` | Using data the server *could* send (a timestamp) to drive a purely visual effect. |
-| 4 | `public/main.js` | Displaying a value that already arrives in a message (`welcome`) but isn't shown anywhere yet. |
-| 5 | `server/constants.js` | Feeling the effect of `TICK_RATE` firsthand — how often the server pushes state. |
-| 6 | `server/crown.js` | Confirming that pickup rules are 100% server-side by exaggerating `CROWN_PICKUP_DISTANCE`. |
-| 7 | `public/renderer.js` | The difference between data (from the server) and presentation (drawing choices made only on the client). |
-| 8 | `public/debug.js` | Computing and displaying a new derived metric (message size) from data already available. |
-| 9 | `public/input.js` | Intentionally breaking the `input` message's field names, then using both debug panels to diagnose and fix it. |
-| 10 | `server/game.js` + `server/player.js` | Adding a brand-new field to the `state` message end-to-end, from server data to client display. |
+Refresh the page and collect a coin. The player grows because `score` is
+server data, while the radius is a client-side drawing choice.
 
-Exercises are designed so none of them require modifying server-side
-*networking* infrastructure (`server/networking.js`, `server/protocol.js`
-validation) — only game data, client display, or tunable constants.
+### Personalize it
+
+Members can then choose one:
+
+- Give each score level a different color.
+- Draw a ring around players with a score above zero.
+- Add a “COIN!” label when a player is close to a coin.
+- Change the grid, coin shape, or player name styling.
+
+Keep strategy changes in `public/strategy.js` and visual changes in
+`public/renderer.js`. Browser-only changes need a refresh, not a server
+restart. Each member should use their own final copy of these files.
+
+### Optional stretch challenges
+
+For members who finish early:
+
+- Add an “arena size” row to the debug panel using the values in `welcome`.
+- Add a message-size metric to `public/debug.js`.
+- Change `TICK_RATE` in `server/constants.js` to `2`, observe the lag, then
+  restore it to `20`.
+- Add a new field to the `state` message in `server/game.js` and display it.
+
+## Competition finale: Crown Clash
+
+After the build challenge, run a short open-play competition. The app does not
+enforce a timer; the facilitator announces when the competition starts and
+stops. This keeps the rules simple and lets the club adjust the play window
+to the room.
+
+### Competition procedure
+
+1. **Freeze the code:** everyone saves their strategy and rendering files and
+   stops editing. Record which client copy belongs to each player.
+2. **Refresh clients:** each member refreshes their browser. If a browser
+   disconnected, reconnect it with the same server address and name.
+3. **Start the call:** say “Crown Clash starts now.” The live **Leaderboard**
+   shows each player's rank and crown count.
+4. **Play fairly:** no changing code during the round, no unplugging another
+   player's laptop, and no claiming a crown without the server showing the
+   score change. Strategies may request movement only; the server rejects
+   invalid directions and owns positions and scores.
+5. **Stop together:** announce “last crown,” allow the current movement to
+   finish, then read the leaderboard aloud.
+
+The leaderboard is sorted by crowns collected. Equal scores share a rank.
+Use the live leaderboard at the end as the official result. If the club wants
+a completely fresh event, stop and restart the server before reconnecting;
+the server's in-memory scores and leaderboard then start at zero.
+
+### Recognition ideas
+
+- **Crown Champion:** highest score.
+- **Fastest Learner:** best explanation of the client/server message flow.
+- **Best Build:** most creative visual change.
+- **Good Sport:** helpful, respectful competition.
+
+Keep the competition about celebrating participation, not only winning. A
+member who finishes with zero crowns but can explain why the server is
+authoritative still achieved the learning goal.
+
+## Facilitator prompts
+
+Use questions rather than a lecture:
+
+- “Which computer knows the real score?”
+- “What would happen if the browser sent `score: 999`?”
+- “Why does the screen freeze when the server stops?”
+- “Which parts of your change are data, and which are presentation?”
+- “How does your strategy decide where to move next?”
+- “What can the server prevent your strategy from changing?”
+- “Who is currently #1, and what message made that score visible?”
+- “Why should we freeze code before comparing leaderboard scores?”
+- “What message would we need to add for a chat feature?”
+
+When someone is stuck, ask them to:
+
+1. Make one small change.
+2. Save the file.
+3. Refresh the browser.
+4. Read the browser console and the server terminal.
+5. Compare the last `SEND` and `RECV` messages.
+
+## Troubleshooting during the event
+
+- **Disconnected:** use `ws://SERVER_LAN_IP:3000`, not `localhost`.
+- **Only some members connect:** confirm the same Wi-Fi/LAN and approve the
+  server firewall prompt.
+- **A server change does nothing:** stop with `Ctrl+C`, then run `npm start`
+  again. Browser-only changes need a refresh.
+- **Everyone sees a frozen game:** check that the server terminal is still
+  running.
+- **Members cannot edit locally:** give them a copy of the repository or
+  have them work in a shared editor while the organizer demonstrates.
+
+## Closing
+
+Ask each member to share one change or one networking idea they learned.
+Invite interested members to turn the next meeting into a feature sprint:
+teams can add power-ups, a countdown, chat, or a new message type while
+keeping the server as the authority.

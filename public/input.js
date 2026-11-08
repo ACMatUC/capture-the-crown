@@ -17,7 +17,7 @@
 // on its own.
 // ============================================================================
 
-// Tracks which movement keys are currently held down.[cite: 1]
+// Tracks which movement keys are currently held down.
 const keysHeld = {
   up: false,
   down: false,
@@ -25,32 +25,33 @@ const keysHeld = {
   right: false,
 };
 
-// The last direction we actually sent to the server. We only send a new[cite: 1]
-// "input" message when this changes, rather than on every keystroke or[cite: 1]
-// every frame -- see updateAndSendInput() below for why.[cite: 1]
+// The last direction we actually sent to the server. We only send a new
+// "input" message when this changes, rather than on every keystroke or
+// every frame.
 let lastSentDirection = { dx: 0, dy: 0 };
+let inputMode = "keyboard";
 
 /**
  * startListeningForInput()
  *
- * WHAT IT DOES: attaches keydown/keyup listeners to the whole page that[cite: 1]
- * update keysHeld, then calls updateAndSendInput() after every change.[cite: 1]
+ * WHAT IT DOES: attaches keydown/keyup listeners to the whole page that
+ * update keysHeld, then calls updateAndSendInput() after every change.
  *
- * WHY IT EXISTS: called once from main.js after the player joins.[cite: 1]
- * RECEIVES: nothing. RETURNS: nothing.[cite: 1]
+ * WHY IT EXISTS: called once from main.js after the player joins.
+ * RECEIVES: nothing. RETURNS: nothing.
  */
 function startListeningForInput() {
   window.addEventListener("keydown", (event) => {
-    if (setKeyState(event.key, true)) { //[cite: 1]
-      event.preventDefault(); //[cite: 1]
-      updateAndSendInput(); //[cite: 1]
+    if (setKeyState(event.key, true)) {
+      event.preventDefault();
+      updateAndSendInput();
     }
   });
 
   window.addEventListener("keyup", (event) => {
-    if (setKeyState(event.key, false)) { //[cite: 1]
-      event.preventDefault(); //[cite: 1]
-      updateAndSendInput(); //[cite: 1]
+    if (setKeyState(event.key, false)) {
+      event.preventDefault();
+      updateAndSendInput();
     }
   });
 }
@@ -58,80 +59,83 @@ function startListeningForInput() {
 /**
  * setKeyState(key, isDown)
  *
- * WHAT IT DOES: maps a raw keyboard key (e.g. "ArrowUp", "w") onto one of[cite: 1]
- * our four logical directions, and updates keysHeld accordingly.[cite: 1]
+ * WHAT IT DOES: maps a raw keyboard key (e.g. "ArrowUp", "w") onto one of
+ * our four logical directions, and updates keysHeld accordingly.
  *
- * WHY IT EXISTS: separates "which physical key was that" from "which[cite: 1]
- * direction does that mean," so the direction logic below doesn't need[cite: 1]
- * to know about WASD vs arrow keys.[cite: 1]
+ * WHY IT EXISTS: separates "which physical key was that" from "which
+ * direction does that mean," so the direction logic below doesn't need
+ * to know about WASD vs arrow keys.
  *
- * RECEIVES: key (string, from KeyboardEvent.key), isDown (boolean).[cite: 1]
- * RETURNS: true if this key mattered to us (so the caller knows whether[cite: 1]
- *   to bother recomputing input), false otherwise.[cite: 1]
+ * RECEIVES: key (string, from KeyboardEvent.key), isDown (boolean).
+ * RETURNS: true if this key mattered to us (so the caller knows whether
+ *   to bother recomputing input), false otherwise.
  */
 function setKeyState(key, isDown) {
-  const lower = key.toLowerCase(); //[cite: 1]
+  const lower = key.toLowerCase();
 
-  if (lower === "w" || lower === "arrowup") { //[cite: 1]
-    keysHeld.up = isDown; //[cite: 1]
-  } else if (lower === "s" || lower === "arrowdown") { //[cite: 1]
-    keysHeld.down = isDown; //[cite: 1]
-  } else if (lower === "a" || lower === "arrowleft") { //[cite: 1]
-    keysHeld.left = isDown; //[cite: 1]
-  } else if (lower === "d" || lower === "arrowright") { //[cite: 1]
-    keysHeld.right = isDown; //[cite: 1]
+  if (lower === "w" || lower === "arrowup") {
+    keysHeld.up = isDown;
+  } else if (lower === "s" || lower === "arrowdown") {
+    keysHeld.down = isDown;
+  } else if (lower === "a" || lower === "arrowleft") {
+    keysHeld.left = isDown;
+  } else if (lower === "d" || lower === "arrowright") {
+    keysHeld.right = isDown;
   } else {
-    return false; //[cite: 1]
+    return false;
   }
-  return true; //[cite: 1]
+  return true;
 }
 
 /**
  * updateAndSendInput()
  *
- * WHAT IT DOES: converts keysHeld into a single {dx, dy} direction.[cite: 1]
- * If no keys are held down, it automatically calculates the direction
- * towards the crown and guides the player there.[cite: 2]
+ * WHAT IT DOES: converts keysHeld into a single {dx, dy} direction.
+ * Releasing all keys sends {dx: 0, dy: 0}, so the player stops.
  */
 function updateAndSendInput() {
+  if (inputMode !== "keyboard") return;
+
   let dx = 0;
   let dy = 0;
 
-  // Check if the player is actively pressing any manual movement keys[cite: 1]
   const anyKeyHeld = keysHeld.up || keysHeld.down || keysHeld.left || keysHeld.right;
 
   if (anyKeyHeld) {
-    // Normal keyboard input control[cite: 1]
-    dx = (keysHeld.right ? 1 : 0) - (keysHeld.left ? 1 : 0); //[cite: 1]
-    dy = (keysHeld.down ? 1 : 0) - (keysHeld.up ? 1 : 0); //[cite: 1]
+    dx = (keysHeld.right ? 1 : 0) - (keysHeld.left ? 1 : 0);
+    dy = (keysHeld.down ? 1 : 0) - (keysHeld.up ? 1 : 0);
+  }
+
+  sendDirection(dx, dy);
+}
+
+function setInputMode(mode) {
+  if (mode !== "keyboard" && mode !== "strategy") {
+    throw new Error(`Unknown input mode: ${mode}`);
+  }
+  inputMode = mode;
+  if (mode === "keyboard") {
+    updateAndSendInput();
   } else {
-    // Auto-follow crown logic
-    const state = getLatestState(); //[cite: 2]
-    const myId = getMyPlayerId();   //[cite: 2]
+    sendDirection(0, 0);
+  }
+}
 
-    if (state && state.crown && myId) { //[cite: 2]
-      // Find our own player in the active players list[cite: 2]
-      const myPlayer = state.players.find(p => p.id === myId); //[cite: 2]
-      
-      if (myPlayer) {
-        const threshold = 5; // Prevents back-and-forth jittering when overlapping the crown
-        const diffX = state.crown.x - myPlayer.x; //[cite: 2]
-        const diffY = state.crown.y - myPlayer.y; //[cite: 2]
+function sendStrategyDirection(dx, dy) {
+  if (inputMode !== "strategy") return;
+  sendDirection(dx, dy);
+}
 
-        if (Math.abs(diffX) > threshold) {
-          dx = diffX > 0 ? 1 : -1;
-        }
-        if (Math.abs(diffY) > threshold) {
-          dy = diffY > 0 ? 1 : -1;
-        }
-      }
-    }
+function sendDirection(dx, dy) {
+  if (![dx, dy].every((value) => [-1, 0, 1].includes(value))) {
+    console.warn("Strategy returned an invalid direction. Stopping player.");
+    dx = 0;
+    dy = 0;
   }
 
-  if (dx === lastSentDirection.dx && dy === lastSentDirection.dy) { //[cite: 1]
-    return; // Nothing changed -- don't waste a network message.[cite: 1]
+  if (dx === lastSentDirection.dx && dy === lastSentDirection.dy) {
+    return;
   }
-  lastSentDirection = { dx, dy }; //[cite: 1]
-
-  sendMessage({ type: "input", dx, dy }); //[cite: 1]
+  lastSentDirection = { dx, dy };
+  sendMessage({ type: "input", dx, dy });
 }

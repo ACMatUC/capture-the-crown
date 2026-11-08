@@ -3,7 +3,7 @@
 //
 // WHAT THIS FILE IS:
 // The heart of server authority. It holds the ONE true copy of the game
-// world (every player, the crown) and runs a fixed-rate loop that updates
+// world (every player, the coins) and runs a fixed-rate loop that updates
 // that world and hands a fresh snapshot to networking.js to broadcast.
 //
 // WHY IT EXISTS:
@@ -21,19 +21,20 @@
 
 const { TICK_RATE } = require("./constants");
 const { createPlayer, movePlayer } = require("./player");
-const { createCrown, checkCrownPickup } = require("./crown");
+const { createCoin, checkCoinPickups } = require("./crown");
+const { COIN_COUNT } = require("./constants");
 
 // ----------------------------------------------------------------------------
 // THE AUTHORITATIVE STATE
 //
 // `players` is a Map from player id -> player object (see player.js).
-// `crown`   is the single shared crown object (see crown.js).
+// `coins`   is the array of shared coin objects (see crown.js).
 //
 // These two variables are the entire game world. Everything the server
 // sends to clients in a "state" message is derived directly from them.
 // ----------------------------------------------------------------------------
 const players = new Map();
-let crown = createCrown();
+let coins = Array.from({ length: COIN_COUNT }, (_, index) => createCoin(`coin-${index + 1}`));
 
 // Simple incrementing counter used to hand out unique, readable player ids
 // like "player-1", "player-2", etc.
@@ -97,7 +98,7 @@ function setPlayerInput(id, dx, dy) {
  *
  * WHAT IT DOES: advances the game world by exactly one tick:
  *   1. Moves every player according to their last input.
- *   2. Checks whether any player has picked up the crown.
+ *   2. Checks whether any player has picked up a coin.
  *
  * WHY IT EXISTS: this is THE authoritative update step. It is the only
  * function in the whole project that changes player positions or scores.
@@ -105,14 +106,14 @@ function setPlayerInput(id, dx, dy) {
  * WHEN IT EXECUTES: called automatically, TICK_RATE times per second, by
  * startGameLoop() below.
  *
- * RECEIVES: nothing (reads/writes the module-level `players` and `crown`).
+ * RECEIVES: nothing (reads/writes the module-level `players` and `coins`).
  * RETURNS: nothing.
  */
 function tickOnce() {
   for (const player of players.values()) {
     movePlayer(player);
   }
-  crown = checkCrownPickup(Array.from(players.values()), crown);
+  coins = checkCoinPickups(Array.from(players.values()), coins);
 }
 
 /**
@@ -128,7 +129,7 @@ function tickOnce() {
  * "describing the world for the network" are two clearly distinct steps.
  *
  * RECEIVES: nothing.
- * RETURNS: { players: [...], crown: {...} } -- see protocol.js "state".
+ * RETURNS: { players: [...], coins: [...] } -- see protocol.js "state".
  */
 function getStateSnapshot() {
   return {
@@ -140,7 +141,11 @@ function getStateSnapshot() {
       y: Math.round(p.y),
       score: p.score,
     })),
-    crown: { x: Math.round(crown.x), y: Math.round(crown.y) },
+    coins: coins.map((coin) => ({
+      id: coin.id,
+      x: Math.round(coin.x),
+      y: Math.round(coin.y),
+    })),
   };
 }
 

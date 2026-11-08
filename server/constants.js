@@ -33,7 +33,7 @@ module.exports = {
   TICK_RATE: 20,
 
   // Size of the shared arena in pixels. The server uses this to keep
-  // players and the crown inside the playable area. The client uses the
+  // players and the coins inside the playable area. The client uses the
   // same numbers to size its <canvas>.
   ARENA_WIDTH: 800,
   ARENA_HEIGHT: 600,
@@ -44,14 +44,15 @@ module.exports = {
   PLAYER_SPEED: 4,
 
   // Radius (in pixels) used for both drawing players and detecting whether
-  // a player has touched the crown. Kept simple on purpose: no real
+  // a player has touched a coin. Kept simple on purpose: no real
   // physics engine, just "distance between two circle centers."
   PLAYER_RADIUS: 16,
-  CROWN_RADIUS: 12,
+  COIN_COUNT: 10,
+  COIN_RADIUS: 12,
 
-  // How far apart (in pixels) a player's center and the crown's center can
-  // be before we count it as "touching" the crown.
-  CROWN_PICKUP_DISTANCE: 16 + 12, // PLAYER_RADIUS + CROWN_RADIUS
+  // How far apart (in pixels) a player's center and a coin's center can
+  // be before we count it as "touching" the coin.
+  COIN_PICKUP_DISTANCE: 16 + 12, // PLAYER_RADIUS + COIN_RADIUS
 
   // How often (milliseconds) the server pings clients to measure latency.
   // This powers the "ping" number in the debug overlay.

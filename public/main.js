@@ -22,6 +22,7 @@ const joinButton = document.getElementById("joinButton");
 const canvas = document.getElementById("gameCanvas");
 const ctx = canvas.getContext("2d");
 const debugToggle = document.getElementById("debugToggle");
+const strategyToggle = document.getElementById("strategyToggle");
 const DEFAULT_WS_PORT = "3000";
 
 /**
@@ -122,22 +123,43 @@ function handleWelcome(message) {
 /**
  * handleStateUpdate(state)
  *
- * WHAT IT DOES: refreshes the scoreboard sidebar whenever a fresh "state"
+ * WHAT IT DOES: refreshes the leaderboard sidebar whenever a fresh "state"
  * message arrives. (The canvas itself is redrawn separately, every
  * animation frame, in renderLoop() below -- see the comment there for
  * why those are handled differently.)
  *
- * RECEIVES: state ({ players: [...], crown: {...} }).
+ * RECEIVES: state ({ players: [...], coins: [...] }).
  */
 function handleStateUpdate(state) {
   renderScoreboard(state.players);
+  renderLocationSummary(state);
+  if (strategyToggle.checked) {
+    runStrategy(state, getMyPlayerId());
+  }
+
+  function renderLocationSummary(state) {
+    const list = document.getElementById("locationSummary");
+    list.innerHTML = "";
+
+    for (const player of state.players) {
+      const item = document.createElement("li");
+      item.textContent = `${player.name}: (${player.x}, ${player.y})`;
+      if (player.id === getMyPlayerId()) item.classList.add("is-you");
+      list.appendChild(item);
+    }
+
+    const coinItem = document.createElement("li");
+    coinItem.className = "coin-locations";
+    coinItem.textContent = `Coins: ${(state.coins || []).map((coin) => `#${coin.id.replace("coin-", "")} (${coin.x}, ${coin.y})`).join(" · ")}`;
+    list.appendChild(coinItem);
+  }
 }
 
 /**
  * renderScoreboard(players)
  *
- * WHAT IT DOES: rebuilds the <ol id="scoreboard"> list from the current
- * player list, sorted highest score first.
+ * WHAT IT DOES: rebuilds the leaderboard from the current player list,
+ * sorted highest score first. Equal scores share a rank.
  *
  * RECEIVES: players (array from the latest "state" message).
  */
@@ -145,20 +167,37 @@ function renderScoreboard(players) {
   const list = document.getElementById("scoreboard");
   const myId = getMyPlayerId();
 
-  const sorted = [...players].sort((a, b) => b.score - a.score);
+  const sorted = [...players].sort((a, b) => {
+    const scoreDifference = b.score - a.score;
+    return scoreDifference || a.name.localeCompare(b.name);
+  });
 
   list.innerHTML = "";
-  for (const player of sorted) {
+  let previousScore = null;
+  let rank = 0;
+  for (let index = 0; index < sorted.length; index += 1) {
+    const player = sorted[index];
+    if (player.score !== previousScore) {
+      rank = index + 1;
+      previousScore = player.score;
+    }
+
     const item = document.createElement("li");
     if (player.id === myId) item.classList.add("is-you");
 
+    const rankLabel = document.createElement("span");
+    rankLabel.className = "leaderboard-rank";
+    rankLabel.textContent = `#${rank}`;
+
     const name = document.createElement("span");
+    name.className = "leaderboard-name";
     name.textContent = player.name + (player.id === myId ? " (you)" : "");
 
     const score = document.createElement("span");
     score.className = "score-value";
     score.textContent = player.score;
 
+    item.appendChild(rankLabel);
     item.appendChild(name);
     item.appendChild(score);
     list.appendChild(item);
@@ -203,6 +242,10 @@ serverUrlInput.addEventListener("keydown", (event) => {
 // ----------------------------------------------------------------------------
 debugToggle.addEventListener("change", () => {
   window.debugOverlay.setEnabled(debugToggle.checked);
+});
+
+strategyToggle.addEventListener("change", () => {
+  setInputMode(strategyToggle.checked ? "strategy" : "keyboard");
 });
 
 // Start with an accurate "disconnected" status shown before anyone clicks
