@@ -1,47 +1,64 @@
 // ============================================================================
-// input.js  (CLIENT SIDE)
+// input.js (CLIENT SIDE)
 //
-// WHAT THIS FILE IS:
-// Listens for keyboard events and turns them into "input" network
-// messages. This file is intentionally tiny and "dumb" -- it doesn't move
-// anyone, doesn't know anyone's position, and doesn't touch the canvas.
-// It only answers one question: "which direction does the player currently
-// want to move?" and reports that to the server.
-//
-// WHY IT EXISTS:
-// This is the clearest possible demonstration of "the client doesn't
-// control the game, it only sends requests." Try this during the
-// workshop: comment out the sendMessage() call in updateAndSendInput()
-// and notice that pressing keys does *nothing at all* anymore, even
-// though the keyboard listeners still fire. The client has zero authority
-// on its own.
+// Keyboard and touch controls only request a direction. The server still
+// decides where the player moves and whether a crown was collected.
 // ============================================================================
 
-// Tracks which movement keys are currently held down.
-const keysHeld = {
-  up: false,
-  down: false,
-  left: false,
-  right: false,
-};
-
-// The last direction we actually sent to the server. We only send a new
-// "input" message when this changes, rather than on every keystroke or
-// every frame.
+const keysHeld = { up: false, down: false, left: false, right: false };
+const movementKeys = new Set();
+const pointerDirections = new Map();
 let lastSentDirection = { dx: 0, dy: 0 };
 let inputMode = "keyboard";
+let inputEnabled = false;
+let listeningForInput = false;
+let inputWindowFocused = true;
 
-/**
- * startListeningForInput()
- *
- * WHAT IT DOES: attaches keydown/keyup listeners to the whole page that
- * update keysHeld, then calls updateAndSendInput() after every change.
- *
- * WHY IT EXISTS: called once from main.js after the player joins.
- * RECEIVES: nothing. RETURNS: nothing.
- */
+function directionForKey(key) {
+  const directions = {
+    w: "up",
+    arrowup: "up",
+    s: "down",
+    arrowdown: "down",
+    a: "left",
+    arrowleft: "left",
+    d: "right",
+    arrowright: "right",
+  };
+  const lower = key.toLowerCase();
+  return Object.hasOwn(directions, lower) ? directions[lower] : null;
+}
+
+function canSendInput() {
+  return (
+    inputEnabled && inputWindowFocused && document.visibilityState !== "hidden"
+  );
+}
+
+function isEditingControl(target) {
+  return (
+    target &&
+    target.closest &&
+    target.closest(
+      "input, textarea, select, [contenteditable]:not([contenteditable='false']), button:not([data-direction])",
+    )
+  );
+}
+
+// Attach listeners just once, including when someone reconnects.
 function startListeningForInput() {
+  setInputEnabled(true);
+  if (listeningForInput) return;
+  listeningForInput = true;
+
   window.addEventListener("keydown", (event) => {
+    if (
+      !canSendInput() ||
+      inputMode !== "keyboard" ||
+      isEditingControl(event.target)
+    )
+      return;
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
     if (setKeyState(event.key, true)) {
       event.preventDefault();
       updateAndSendInput();
@@ -49,64 +66,120 @@ function startListeningForInput() {
   });
 
   window.addEventListener("keyup", (event) => {
+    // Always release a held key, even if focus moved to a text field meanwhile.
+    const wasHeld = movementKeys.has(event.key.toLowerCase());
     if (setKeyState(event.key, false)) {
-      event.preventDefault();
+      if (
+        wasHeld &&
+        canSendInput() &&
+        inputMode === "keyboard" &&
+        !isEditingControl(event.target)
+      ) {
+        event.preventDefault();
+      }
       updateAndSendInput();
     }
   });
+
+  window.addEventListener("blur", () => {
+    inputWindowFocused = false;
+    resetInput();
+  });
+  window.addEventListener("focus", () => {
+    inputWindowFocused = true;
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") resetInput();
+  });
+  document.addEventListener("focusin", (event) => {
+    if (isEditingControl(event.target)) {
+      movementKeys.clear();
+      updateAndSendInput();
+    }
+  });
+
+  for (const button of document.querySelectorAll("[data-direction]")) {
+    button.addEventListener("pointerdown", (event) => {
+      if (!canSendInput() || inputMode !== "keyboard" || event.button !== 0)
+        return;
+      event.preventDefault();
+      pointerDirections.set(event.pointerId, button.dataset.direction);
+      button.setPointerCapture(event.pointerId);
+      updateAndSendInput();
+    });
+    button.addEventListener("lostpointercapture", (event) => {
+      pointerDirections.delete(event.pointerId);
+      updateAndSendInput();
+    });
+    // Focusable buttons work with Enter/Space as well as pointer input.
+    button.addEventListener("keydown", (event) => {
+      if (event.key !== " " && event.key !== "Enter") return;
+      if (!canSendInput() || inputMode !== "keyboard") return;
+      event.preventDefault();
+      pointerDirections.set(
+        `button-${button.dataset.direction}`,
+        button.dataset.direction,
+      );
+      updateAndSendInput();
+    });
+    button.addEventListener("keyup", (event) => {
+      if (event.key !== " " && event.key !== "Enter") return;
+      event.preventDefault();
+      pointerDirections.delete(`button-${button.dataset.direction}`);
+      updateAndSendInput();
+    });
+    button.addEventListener("blur", () => {
+      pointerDirections.delete(`button-${button.dataset.direction}`);
+      updateAndSendInput();
+    });
+  }
+
+  const releasePointer = (event) => {
+    if (!pointerDirections.delete(event.pointerId)) return;
+    updateAndSendInput();
+  };
+  window.addEventListener("pointerup", releasePointer);
+  window.addEventListener("pointercancel", releasePointer);
 }
 
-/**
- * setKeyState(key, isDown)
- *
- * WHAT IT DOES: maps a raw keyboard key (e.g. "ArrowUp", "w") onto one of
- * our four logical directions, and updates keysHeld accordingly.
- *
- * WHY IT EXISTS: separates "which physical key was that" from "which
- * direction does that mean," so the direction logic below doesn't need
- * to know about WASD vs arrow keys.
- *
- * RECEIVES: key (string, from KeyboardEvent.key), isDown (boolean).
- * RETURNS: true if this key mattered to us (so the caller knows whether
- *   to bother recomputing input), false otherwise.
- */
 function setKeyState(key, isDown) {
   const lower = key.toLowerCase();
-
-  if (lower === "w" || lower === "arrowup") {
-    keysHeld.up = isDown;
-  } else if (lower === "s" || lower === "arrowdown") {
-    keysHeld.down = isDown;
-  } else if (lower === "a" || lower === "arrowleft") {
-    keysHeld.left = isDown;
-  } else if (lower === "d" || lower === "arrowright") {
-    keysHeld.right = isDown;
-  } else {
-    return false;
-  }
+  if (!directionForKey(lower)) return false;
+  if (isDown) movementKeys.add(lower);
+  else movementKeys.delete(lower);
   return true;
 }
 
-/**
- * updateAndSendInput()
- *
- * WHAT IT DOES: converts keysHeld into a single {dx, dy} direction.
- * Releasing all keys sends {dx: 0, dy: 0}, so the player stops.
- */
 function updateAndSendInput() {
-  if (inputMode !== "keyboard") return;
-
-  let dx = 0;
-  let dy = 0;
-
-  const anyKeyHeld = keysHeld.up || keysHeld.down || keysHeld.left || keysHeld.right;
-
-  if (anyKeyHeld) {
-    dx = (keysHeld.right ? 1 : 0) - (keysHeld.left ? 1 : 0);
-    dy = (keysHeld.down ? 1 : 0) - (keysHeld.up ? 1 : 0);
+  for (const direction of Object.keys(keysHeld)) keysHeld[direction] = false;
+  for (const key of movementKeys) keysHeld[directionForKey(key)] = true;
+  for (const direction of pointerDirections.values()) {
+    if (Object.hasOwn(keysHeld, direction)) keysHeld[direction] = true;
   }
+  for (const button of document.querySelectorAll("[data-direction]")) {
+    const pressed = keysHeld[button.dataset.direction];
+    button.classList.toggle("is-pressed", pressed);
+    button.setAttribute("aria-pressed", String(pressed));
+  }
+  if (inputMode !== "keyboard" || !canSendInput()) return;
+  sendDirection(
+    Number(keysHeld.right) - Number(keysHeld.left),
+    Number(keysHeld.down) - Number(keysHeld.up),
+  );
+}
 
-  sendDirection(dx, dy);
+// Main calls this when disconnecting/rejoining so old held keys cannot leak
+// into a new game. It can also pause all movement while a dialog is open.
+function setInputEnabled(enabled) {
+  inputEnabled = Boolean(enabled);
+  resetInput();
+}
+
+function resetInput() {
+  movementKeys.clear();
+  pointerDirections.clear();
+  updateAndSendInput();
+  sendDirection(0, 0);
 }
 
 function setInputMode(mode) {
@@ -114,15 +187,11 @@ function setInputMode(mode) {
     throw new Error(`Unknown input mode: ${mode}`);
   }
   inputMode = mode;
-  if (mode === "keyboard") {
-    updateAndSendInput();
-  } else {
-    sendDirection(0, 0);
-  }
+  resetInput();
 }
 
 function sendStrategyDirection(dx, dy) {
-  if (inputMode !== "strategy") return;
+  if (inputMode !== "strategy" || !canSendInput()) return;
   sendDirection(dx, dy);
 }
 
@@ -132,10 +201,7 @@ function sendDirection(dx, dy) {
     dx = 0;
     dy = 0;
   }
-
-  if (dx === lastSentDirection.dx && dy === lastSentDirection.dy) {
-    return;
-  }
+  if (dx === lastSentDirection.dx && dy === lastSentDirection.dy) return;
   lastSentDirection = { dx, dy };
   sendMessage({ type: "input", dx, dy });
 }

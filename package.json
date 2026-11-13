@@ -1,11 +1,13 @@
 {
   "name": "capture-the-crown",
   "version": "1.0.0",
-  "description": "A teaching project for a 60-minute WebSocket networking workshop, disguised as a tiny multiplayer game.",
+  "description": "A tiny LAN multiplayer game for a 30-minute WebSocket networking workshop.",
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
-    "server": "node server/server.js"
+    "server": "node server/server.js",
+    "test": "node --test tests/*.test.js",
+    "test:lan": "node tests/lan-smoke.cjs"
   },
   "license": "MIT",
   "dependencies": {

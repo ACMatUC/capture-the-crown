@@ -225,6 +225,10 @@ function handleMessage(socket, raw) {
  * server.
  */
 function handleJoin(socket, message) {
+  // One socket represents one player. Ignore repeated join requests so
+  // disconnecting can always remove its one player without leaving ghosts.
+  if (socketToPlayerId.has(socket)) return;
+
   const player = game.addPlayer(message.name);
 
   socketToPlayerId.set(socket, player.id);

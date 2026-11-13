@@ -1,116 +1,470 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Capture the Crown &mdash; Networking Lab</title>
-  <link rel="stylesheet" href="styles.css">
-</head>
-<body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#c32f28" />
+    <meta
+      name="description"
+      content="Ten crowns. One point each. Highest score wins. A LAN multiplayer game and networking workshop."
+    />
+    <title>Capture the Crown · ACM@UC</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23c32f28'/%3E%3Cpath d='M6 10l6 5 4-8 4 8 6-5-4 15H10z' fill='%23fff8e8'/%3E%3C/svg%3E"
+    />
+    <link
+      rel="preload"
+      href="fonts/ArchivoBlack-Regular.ttf"
+      as="font"
+      type="font/ttf"
+      crossorigin
+    />
+    <link
+      rel="preload"
+      href="fonts/DMSans-Variable.ttf"
+      as="font"
+      type="font/ttf"
+      crossorigin
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Tiny, reusable line icons. All artwork and fonts work offline. -->
+    <svg
+      class="icon-library"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <symbol id="icon-crown" viewBox="0 0 24 24">
+        <path d="m3 6 5 4 4-7 4 7 5-4-3 13H6L3 6Z" />
+        <path d="M7 22h10" />
+      </symbol>
+      <symbol id="icon-arrow" viewBox="0 0 24 24">
+        <path d="M4 12h15m-6-6 6 6-6 6" />
+      </symbol>
+      <symbol id="icon-code" viewBox="0 0 24 24">
+        <path d="m7 7-5 5 5 5m10-10 5 5-5 5M14 4l-4 16" />
+      </symbol>
+      <symbol id="icon-trophy" viewBox="0 0 24 24">
+        <path
+          d="M7 3h10v5a5 5 0 0 1-10 0V3Zm0 2H3v2a4 4 0 0 0 5 4m9-6h4v2a4 4 0 0 1-5 4M12 13v7m-4 1h8"
+        />
+      </symbol>
+    </svg>
 
-  <header class="topbar">
-    <div class="topbar-title">
-      <span class="crown-icon">&#9819;</span>
-      Capture the Crown
-      <span class="subtitle">a WebSocket networking lab</span>
-    </div>
-    <div class="topbar-status">
-      <span id="connectionDot" class="status-dot status-disconnected"></span>
-      <span id="connectionLabel">disconnected</span>
-    </div>
-  </header>
+    <header class="topbar">
+      <a
+        class="brand"
+        href="./index.html"
+        aria-label="ACM@UC — Capture the Crown home"
+      >
+        <!-- Frame the artwork inside the supplied image's transparent padding. -->
+        <svg
+          class="club-logo"
+          viewBox="398 1967 3704 566"
+          role="img"
+          aria-label="ACM@UC logo"
+        >
+          <image href="assets/acm-uc-logo.png" width="4500" height="4500" />
+        </svg>
+        <span class="brand-caption">NETWORKING<br />WORKSHOP</span>
+      </a>
+      <nav class="top-nav" aria-label="Main navigation">
+        <button class="nav-link" data-open-help>
+          How to play <span aria-hidden="true">↗</span>
+        </button>
+      </nav>
+      <div class="topbar-status" role="status">
+        <span id="connectionDot" class="status-dot status-disconnected"></span
+        ><span id="connectionLabel">Not connected</span>
+      </div>
+    </header>
 
-  <main class="layout">
+    <main class="layout">
+      <!-- A club-event poster, rather than a product landing page. -->
+      <section class="page-heading" aria-labelledby="pageTitle">
+        <div class="poster-copy">
+          <p class="eyebrow">A GAME FOR EVERYONE IN THE ROOM.</p>
+          <h1 id="pageTitle">
+            CAPTURE<br /><span class="title-second"
+              >THE CROWN<span class="title-dot">.</span></span
+            >
+          </h1>
+          <p class="page-description">
+            Ten crowns. One point each. Highest score wins.
+          </p>
+        </div>
+        <div class="poster-art" aria-hidden="true">
+          <svg class="crown-diagram" viewBox="0 0 220 180">
+            <g class="network-lines">
+              <path
+                d="m40 32 70-15 75 29 20 85-88 34-88-35L40 32Zm0 0 77 133L185 46 29 130l176 1L110 17l7 148M40 32l165 99"
+              />
+              <circle cx="40" cy="32" r="5" />
+              <circle cx="110" cy="17" r="5" />
+              <circle cx="185" cy="46" r="5" />
+              <circle cx="205" cy="131" r="5" />
+              <circle cx="117" cy="165" r="5" />
+              <circle cx="29" cy="130" r="5" />
+            </g>
+            <circle class="crown-disc" cx="115" cy="89" r="43" />
+            <path
+              class="poster-crown"
+              d="m86 71 15 12 14-23 14 23 15-12-9 39H95l-9-39Zm12 46h34"
+            /></svg
+          ><span class="party-stamp">LAN<br />PARTY<span>→</span></span>
+        </div>
+      </section>
 
-    <!-- ============================================================
-         JOIN SCREEN
-         Shown before the player has sent a "join" message. This is
-         the only screen with a traditional HTML form-like control.
-         ============================================================ -->
-    <section id="joinScreen" class="join-screen">
-      <h1>Enter the arena</h1>
-      <p>Enter the server PC's LAN WebSocket address, then pick a name.</p>
-      <input id="serverUrlInput" type="text" placeholder="ws://10.x.x.x:3000" autocomplete="off" spellcheck="false">
-      <input id="nameInput" type="text" maxlength="16" placeholder="Your name" autocomplete="off">
-      <p id="joinError" class="join-error" aria-live="polite"></p>
-      <button id="joinButton">Connect &amp; Join</button>
-    </section>
+      <div class="game-layout">
+        <section id="arena" class="arena-card" aria-labelledby="arenaTitle">
+          <div class="arena-header">
+            <div class="arena-title">
+              <h2 id="arenaTitle">THE PLAYING FIELD</h2>
+              <span id="arenaState" class="small-badge">PREVIEW</span>
+            </div>
+            <span class="arena-rule"
+              ><svg class="icon"><use href="#icon-crown" /></svg
+              ><span id="crownCount">10</span> on the map
+              <span aria-hidden="true">/</span> +1 each</span
+            >
+          </div>
+          <div class="canvas-wrap">
+            <canvas
+              id="gameCanvas"
+              width="800"
+              height="600"
+              tabindex="0"
+              aria-label="Game arena. Move with W A S D or arrow keys. Your player has a red ring and a YOU label."
+              aria-describedby="arenaCaption"
+            ></canvas>
+            <div id="previewNotice" class="preview-notice">
+              <strong>YOU’RE UP<span>↗</span></strong
+              ><span>Pick a name. Join the game.</span
+              ><span class="preview-label"
+                >ILLUSTRATED PREVIEW — JOIN FOR LIVE PLAY</span
+              >
+            </div>
+            <div
+              id="pickupNotice"
+              class="pickup-notice"
+              role="status"
+              aria-live="polite"
+            ></div>
+            <span class="arena-corner-label" aria-hidden="true"
+              >NO ELIMINATIONS. JUST CROWNS.</span
+            >
+          </div>
+          <div class="arena-bottom">
+            <div class="control-keys">
+              <span class="key-group" aria-hidden="true"
+                ><kbd>W</kbd
+                ><span><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd></span></span
+              ><span class="control-copy"
+                >WASD / arrow keys<span
+                  >Touch a crown to collect it.</span
+                ></span
+              >
+            </div>
+            <div class="arena-legend">
+              <span class="legend-you"></span> YOU
+              <span class="legend-crown"></span> +1
+            </div>
+            <button class="text-button" data-open-help>Rules ↗</button>
+          </div>
+          <div class="touch-controls" aria-label="Touch movement controls">
+            <span>Hold a button<br />to move.</span>
+            <div class="dpad">
+              <button data-direction="up" aria-label="Move up" disabled>
+                ↑</button
+              ><button data-direction="left" aria-label="Move left" disabled>
+                ←</button
+              ><button data-direction="down" aria-label="Move down" disabled>
+                ↓</button
+              ><button data-direction="right" aria-label="Move right" disabled>
+                →
+              </button>
+            </div>
+          </div>
+          <p id="arenaCaption" class="sr-only">
+            The preview shows example players. Join for live play. Collect a
+            gold crown for one point. It respawns somewhere new. Equal scores
+            share a rank.
+          </p>
+        </section>
 
-    <!-- ============================================================
-         GAME SCREEN
-         Hidden until "welcome" arrives from the server.
-         ============================================================ -->
-    <section id="gameScreen" class="game-screen hidden">
+        <aside class="side-panel">
+          <section
+            id="joinScreen"
+            class="join-screen"
+            aria-labelledby="joinTitle"
+          >
+            <p class="section-kicker">01 / GET IN HERE</p>
+            <h2 id="joinTitle">Join the game.</h2>
+            <p class="panel-description">
+              Use the address on your host’s screen.
+            </p>
+            <form id="joinForm">
+              <label for="nameInput">Your name <span>MAX. 16</span></label
+              ><input
+                id="nameInput"
+                type="text"
+                maxlength="16"
+                placeholder="Pick a name"
+                autocomplete="nickname"
+                required
+              /><label for="serverUrlInput">Server address</label
+              ><input
+                id="serverUrlInput"
+                type="text"
+                placeholder="ws://192.168.1.10:3000"
+                autocomplete="off"
+                spellcheck="false"
+                autocapitalize="off"
+                required
+                aria-describedby="serverHelp joinError"
+              />
+              <p id="serverHelp" class="field-help">
+                Same Wi-Fi or LAN as the host.
+              </p>
+              <p id="joinError" class="join-error" role="alert"></p>
+              <button id="joinButton" class="primary-button" type="submit">
+                <span>Let me in</span
+                ><svg class="icon"><use href="#icon-arrow" /></svg>
+              </button>
+            </form>
+            <p class="join-footnote">No account. Just a name and a network.</p>
+          </section>
 
-      <div class="board-area">
-        <canvas id="gameCanvas" width="800" height="600"></canvas>
-        <div class="controls-hint">Move with <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> or arrow keys</div>
+          <section
+            id="gameScreen"
+            class="game-screen hidden"
+            aria-label="Your live game"
+          >
+            <div class="player-card">
+              <div class="player-card-top">
+                <span class="section-kicker">YOU’RE PLAYING AS</span
+                ><button
+                  id="openStandings"
+                  class="text-button standings-launch"
+                  type="button"
+                >
+                  Standings ↗
+                </button>
+                <button id="leaveButton" class="text-button" type="button">
+                  Leave ↗
+                </button>
+              </div>
+              <div class="player-identity">
+                <span id="playerAvatar" class="player-avatar">Y</span>
+                <div>
+                  <h2 id="playerName">You</h2>
+                  <span id="controlModeLabel">Keyboard / touch</span>
+                </div>
+              </div>
+              <div class="personal-stats">
+                <div><span>CROWNS</span><strong id="myScore">0</strong></div>
+                <div><span>PLACE</span><strong id="myRank">—</strong></div>
+              </div>
+            </div>
+            <div class="leaderboard-panel">
+              <div class="panel-heading">
+                <h2>THE STANDINGS</h2>
+                <span><span id="playerCount">0</span> playing</span>
+              </div>
+              <ol id="scoreboard" class="scoreboard-list"></ol>
+              <p class="leaderboard-footer">Tied scores share a place.</p>
+            </div>
+            <div class="strategy-panel">
+              <label class="strategy-control" for="strategyToggle"
+                ><input
+                  type="checkbox"
+                  id="strategyToggle"
+                  aria-label="Run my code" /><span>Run my code</span
+                ><svg class="icon"><use href="#icon-code" /></svg
+              ></label>
+              <p id="strategyDescription">
+                Your strategy takes over the controls.
+              </p>
+              <p class="strategy-note">
+                Edit <code>strategy.js</code>, refresh, then check the box.
+              </p>
+            </div>
+          </section>
+
+          <section class="how-card" aria-labelledby="howTitle">
+            <span class="rules-pin" aria-hidden="true">✳</span>
+            <p class="section-kicker">THE VERY SHORT RULEBOOK</p>
+            <h2 id="howTitle">See gold?<br />Go get it.</h2>
+            <ol class="how-list">
+              <li>
+                <span>1</span>
+                <p>
+                  <strong>Move.</strong> WASD, arrow keys, or the buttons below
+                  the field.
+                </p>
+              </li>
+              <li>
+                <span>2</span>
+                <p>
+                  <strong>Collect.</strong> Each crown is worth a point. It
+                  respawns somewhere new.
+                </p>
+              </li>
+              <li>
+                <span>3</span>
+                <p>
+                  <strong>Win.</strong> Most crowns when the host calls time.
+                </p>
+              </li>
+            </ol>
+          </section>
+        </aside>
       </div>
 
-      <aside class="side-panel">
-
-        <div class="panel-block">
-          <h2>Leaderboard</h2>
-          <p class="leaderboard-help">Collect any of the 10 coins. Ties share a rank.</p>
-          <label class="strategy-toggle">
-            <input type="checkbox" id="strategyToggle">
-            run my strategy code
-          </label>
-          <ol id="scoreboard" class="scoreboard-list"></ol>
+      <button id="openNetwork" class="network-launch" type="button">
+        <svg class="icon"><use href="#icon-code" /></svg
+        ><strong>WATCH THE MESSAGES</strong
+        ><span class="tools-subtitle">Keyboard → server → everyone</span
+        ><span class="tools-action"
+          >OPEN LAB <span aria-hidden="true">↗</span></span
+        >
+      </button>
+      <dialog
+        id="networkDialog"
+        class="network-dialog"
+        aria-labelledby="networkTitle"
+      >
+        <div class="dialog-top network-dialog-header">
+          <h2 id="networkTitle">Watch the messages</h2>
+          <button
+            id="closeNetwork"
+            class="close-button"
+            aria-label="Close network lab"
+          >
+            ×
+          </button>
         </div>
-
-        <div class="panel-block">
-          <h2>Live locations</h2>
-          <p class="leaderboard-help">Everyone sees every player and coin.</p>
-          <ul id="locationSummary" class="location-list"></ul>
-        </div>
-
-        <div class="panel-block">
-          <div class="panel-header-row">
-            <h2>Network Debug</h2>
-            <label class="debug-toggle">
-              <input type="checkbox" id="debugToggle" checked>
-              live
-            </label>
+        <details id="workshopTools" class="workshop-tools">
+          <summary class="sr-only" tabindex="-1" hidden>
+            Network details
+          </summary>
+          <div class="workshop-content">
+            <section class="debug-panel">
+              <div class="panel-heading">
+                <h2>Network Debug</h2>
+                <label class="debug-toggle"
+                  ><input type="checkbox" id="debugToggle" checked /> Live
+                  updates</label
+                >
+              </div>
+              <p class="field-help">
+                The client asks to move. The server updates the shared world.
+              </p>
+              <dl class="debug-grid">
+                <dt>Connection</dt>
+                <dd id="dbgConnection">disconnected</dd>
+                <dt>Player ID</dt>
+                <dd id="dbgPlayerId">—</dd>
+                <dt>Clock difference*</dt>
+                <dd id="dbgPing">—</dd>
+                <dt>Players</dt>
+                <dd id="dbgPlayers">—</dd>
+                <dt>Sent</dt>
+                <dd id="dbgSent">0</dd>
+                <dt>Received</dt>
+                <dd id="dbgReceived">0</dd>
+              </dl>
+              <p class="field-help">
+                *Arrival time minus server timestamp, including clock
+                differences. This is not round-trip ping.
+              </p>
+              <div class="message-grid">
+                <div>
+                  <h3>SEND / client → server</h3>
+                  <pre id="dbgLastSent" class="debug-json">
+Waiting for a connection.</pre>
+                </div>
+                <div>
+                  <h3>RECV / server → client</h3>
+                  <pre id="dbgLastReceived" class="debug-json">
+Waiting for a connection.</pre>
+                </div>
+              </div>
+            </section>
+            <section class="location-panel">
+              <h2>Live coordinates</h2>
+              <p class="field-help">The same world on every screen.</p>
+              <ul id="locationSummary" class="location-list">
+                <li>Join to see live coordinates.</li>
+              </ul>
+            </section>
           </div>
-          <dl class="debug-grid">
-            <dt>connection</dt><dd id="dbgConnection">&mdash;</dd>
-            <dt>player id</dt><dd id="dbgPlayerId">&mdash;</dd>
-            <dt>ping</dt><dd id="dbgPing">&mdash;</dd>
-            <dt>players online</dt><dd id="dbgPlayers">&mdash;</dd>
-            <dt>messages sent</dt><dd id="dbgSent">0</dd>
-            <dt>messages received</dt><dd id="dbgReceived">0</dd>
-          </dl>
+        </details>
+      </dialog>
+      <footer class="site-footer">
+        <span>ACM@UC <span class="footer-slash">/</span> CAPTURE THE CROWN</span
+        ><span>One server. Everybody plays.</span>
+      </footer>
+    </main>
 
-          <h3>Last message sent (SEND)</h3>
-          <pre id="dbgLastSent" class="debug-json">&mdash;</pre>
-
-          <h3>Last message received (RECV)</h3>
-          <pre id="dbgLastReceived" class="debug-json">&mdash;</pre>
-        </div>
-
-      </aside>
-    </section>
-
-  </main>
-
-  <!--
-    Script load order matters here because we are NOT using ES modules or
-    a bundler -- these are plain <script> tags, so each file's top-level
-    functions/variables become available to the ones loaded after it.
-
-    networking.js     -> loaded first; documents the protocol + owns the socket
-    debug.js          -> debug overlay state + rendering, no dependencies
-    networking.js     -> the WebSocket connection itself
-    input.js          -> keyboard -> "input" messages
-    strategy.js       -> member-authored strategy -> "input" messages
-    renderer.js        -> draws the latest state onto the canvas
-    main.js           -> wires everything above together
-  -->
-  <script src="networking.js"></script>
-  <script src="debug.js"></script>
-  <script src="input.js"></script>
-  <script src="strategy.js"></script>
-  <script src="renderer.js"></script>
-  <script src="main.js"></script>
-</body>
+    <dialog id="helpDialog" aria-labelledby="helpTitle">
+      <div class="dialog-top">
+        <span class="section-kicker">THE RULEBOOK</span
+        ><button id="closeHelp" class="close-button" aria-label="Close guide">
+          ×
+        </button>
+      </div>
+      <h2 id="helpTitle">Go for<br />the gold.</h2>
+      <p>
+        Join your host’s server on the same local network. Look for the player
+        with the <strong>red ring</strong> and <strong>YOU</strong> label.
+      </p>
+      <ol>
+        <li>
+          <strong>Move</strong> with WASD, arrow keys, or the on-screen buttons.
+        </li>
+        <li>
+          <strong>Collect</strong> a crown for +1. It immediately respawns
+          somewhere new.
+        </li>
+        <li>
+          <strong>Win</strong> by having the most crowns when your host calls
+          time. Ties share a rank.
+        </li>
+      </ol>
+      <p class="dialog-tip">
+        Want your code to play? Edit <code>strategy.js</code> and check
+        <strong>Run my code</strong> after joining.
+      </p>
+      <button id="helpDone" class="primary-button">
+        Got it <svg class="icon"><use href="#icon-arrow" /></svg>
+      </button>
+    </dialog>
+    <dialog
+      id="standingsDialog"
+      class="standings-dialog"
+      aria-labelledby="standingsTitle"
+    >
+      <div class="dialog-top standings-dialog-header">
+        <h2 id="standingsTitle">The standings</h2>
+        <button
+          id="closeStandings"
+          class="close-button"
+          aria-label="Close standings"
+        >
+          ×
+        </button>
+      </div>
+      <div id="standingsDialogBody"></div>
+    </dialog>
+    <!-- Plain scripts, no build step. The server owns every position and score. -->
+    <script src="networking.js"></script>
+    <script src="debug.js"></script>
+    <script src="input.js"></script>
+    <script src="strategy.js"></script>
+    <script src="renderer.js"></script>
+    <script src="main.js"></script>
+  </body>
 </html>

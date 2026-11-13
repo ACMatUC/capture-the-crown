@@ -21,7 +21,7 @@ const { ARENA_WIDTH, ARENA_HEIGHT, PLAYER_SPEED, PLAYER_RADIUS } = require("./co
  * createPlayer(id, name)
  *
  * WHAT IT DOES: builds a fresh player object with a random starting
- * position, zero score, and no movement input yet.
+ * position fully inside the arena, zero score, and no movement input yet.
  *
  * WHY IT EXISTS: called once per player, right when their "join" message
  * is processed (see networking.js).
@@ -36,8 +36,8 @@ function createPlayer(id, name) {
   return {
     id,
     name,
-    x: Math.random() * ARENA_WIDTH,
-    y: Math.random() * ARENA_HEIGHT,
+    x: PLAYER_RADIUS + Math.random() * (ARENA_WIDTH - PLAYER_RADIUS * 2),
+    y: PLAYER_RADIUS + Math.random() * (ARENA_HEIGHT - PLAYER_RADIUS * 2),
     score: 0,
     // Current movement direction, set by the most recent "input" message.
     // Not sent to clients as-is; it's just what the tick loop reads from.

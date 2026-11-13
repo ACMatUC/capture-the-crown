@@ -1,160 +1,309 @@
 // ============================================================================
-// renderer.js  (CLIENT SIDE)
+// renderer.js (CLIENT SIDE)
 //
-// WHAT THIS FILE IS:
-// Draws the current game state onto the <canvas>. That's it. This file
-// has no idea a WebSocket exists -- it just receives a "state" object
-// (see server/protocol.js) and draws exactly what it's told.
-//
-// WHY IT EXISTS:
-// Separating "draw what we were told" from "receive what we were told"
-// (networking.js) makes the server-authoritative model visually obvious:
-// this file NEVER moves anything on its own. If you stopped receiving
-// "state" messages, the canvas would simply freeze -- try it by connecting
-// two client PCs and killing the server terminal mid-game.
-//
-// A handful of named colors are used for player circles so that, with
-// several players connected, everyone is easy to tell apart at a glance.
+// Draws the server's latest snapshot. Positions, pickups, and scores are still
+// decided exclusively by the server; paper, ink, and confetti are presentation.
+// Keep this file independent of WebSockets so workshop members can customize it.
 // ============================================================================
 
-const PLAYER_COLORS = ["#ffb454", "#5fd39a", "#7aa2f7", "#f7768e", "#bb9af7", "#9ece6a"];
+const PLAYER_COLORS = [
+  "#8eabd1",
+  "#c5a1c9",
+  "#96b294",
+  "#e2a37f",
+  "#d6bd6b",
+  "#a5a5c9",
+];
+const SELF_COLOR = "#c32f28";
+const ARENA_INK = "#171715";
+const ARENA_PAPER = "#f7f4eb";
+let lastRenderedState = null;
+let previousScores = new Map();
+let pickupEffects = [];
 
-/**
- * colorForPlayer(id)
- *
- * WHAT IT DOES: deterministically picks a color for a player id, so the
- * same player is always drawn in the same color across frames.
- * WHY IT EXISTS: small helper used by drawPlayers() below.
- */
 function colorForPlayer(id) {
-  // Turn the numeric part of "player-7" into an index into PLAYER_COLORS.
   const num = parseInt(id.replace(/[^0-9]/g, ""), 10) || 0;
   return PLAYER_COLORS[num % PLAYER_COLORS.length];
 }
 
-/**
- * drawFrame(ctx, state, myPlayerId)
- *
- * WHAT IT DOES: clears the canvas and redraws EVERYTHING from scratch
- * based on the given state. This is the single entry point main.js calls
- * on every animation frame.
- *
- * WHY IT EXISTS: this "clear and redraw everything" approach (as opposed
- * to incrementally moving existing shapes) is deliberately simple -- it
- * guarantees what's on screen is always a direct, honest reflection of
- * the last "state" message received, with no leftover visual state to
- * reason about.
- *
- * RECEIVES:
- *   ctx (CanvasRenderingContext2D)
- *   state ({ players: [...], coins: [...] }) -- see protocol.js
- *   myPlayerId (string|null) -- used to highlight "you" on the board.
- * RETURNS: nothing.
- */
+// Call on a new connection so a previous session cannot create pickup effects.
+function resetRenderer() {
+  lastRenderedState = null;
+  previousScores.clear();
+  pickupEffects = [];
+}
+
+/** Redraw the arena from the latest authoritative state, without prediction. */
 function drawFrame(ctx, state, myPlayerId) {
   const width = ctx.canvas.width;
   const height = ctx.canvas.height;
+  const displayScale = canvasDisplayScale(ctx.canvas);
+  const now = performance.now();
+  const reducedMotion =
+    typeof matchMedia === "function" &&
+    matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  // Only a confirmed score increase can trigger a celebration.
+  if (state !== lastRenderedState) {
+    for (const player of state.players || []) {
+      const previous = previousScores.get(player.id);
+      if (previous !== undefined && player.score > previous && !reducedMotion) {
+        pickupEffects.push({
+          x: player.x,
+          y: player.y,
+          amount: player.score - previous,
+          at: now,
+          mine: player.id === myPlayerId,
+        });
+      }
+    }
+    previousScores = new Map(
+      (state.players || []).map((player) => [player.id, player.score]),
+    );
+    lastRenderedState = state;
+    pickupEffects = pickupEffects.slice(-24);
+  }
 
   ctx.clearRect(0, 0, width, height);
   drawGrid(ctx, width, height);
+  for (const coin of state.coins || []) drawCoin(ctx, coin);
 
-  for (const coin of state.coins || []) {
-    drawCoin(ctx, coin);
+  // Draw your player last so you remain easy to locate in a crowded arena.
+  for (const player of state.players || []) {
+    if (player.id !== myPlayerId) drawPlayer(ctx, player, false, displayScale);
   }
+  const me = (state.players || []).find((player) => player.id === myPlayerId);
+  if (me) drawPlayer(ctx, me, true, displayScale);
 
-  for (const player of state.players) {
-    drawPlayer(ctx, player, player.id === myPlayerId);
-  }
+  pickupEffects = pickupEffects.filter((effect) => now - effect.at < 750);
+  if (!reducedMotion)
+    for (const effect of pickupEffects) drawPickupEffect(ctx, effect, now);
 }
 
-/**
- * drawGrid(ctx, width, height)
- *
- * WHAT IT DOES: draws a faint background grid, purely so the arena has
- * some visual reference points and player movement is easy to perceive.
- * WHY IT EXISTS: cosmetic only -- no networking meaning whatsoever.
- */
+/** Graph paper and a few ruled lines make this a little club playground. */
 function drawGrid(ctx, width, height) {
-  const spacing = 40;
-  ctx.strokeStyle = "rgba(255,255,255,0.04)";
-  ctx.lineWidth = 1;
+  ctx.fillStyle = ARENA_PAPER;
+  ctx.fillRect(0, 0, width, height);
 
-  for (let x = 0; x <= width; x += spacing) {
-    ctx.beginPath();
+  ctx.save();
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "rgba(56, 68, 64, 0.09)";
+  ctx.beginPath();
+  for (let x = 0.5; x <= width; x += 40) {
     ctx.moveTo(x, 0);
     ctx.lineTo(x, height);
-    ctx.stroke();
   }
-  for (let y = 0; y <= height; y += spacing) {
-    ctx.beginPath();
+  for (let y = 0.5; y <= height; y += 40) {
     ctx.moveTo(0, y);
     ctx.lineTo(width, y);
+  }
+  ctx.stroke();
+
+  ctx.strokeStyle = "rgba(23, 23, 21, 0.22)";
+  roundedPath(ctx, 12, 12, width - 24, height - 24, 2);
+  ctx.stroke();
+  ctx.setLineDash([5, 10]);
+  ctx.beginPath();
+  ctx.moveTo(width / 2, 12);
+  ctx.lineTo(width / 2, height - 12);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.beginPath();
+  ctx.arc(width / 2, height / 2, 72, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(width / 2, height / 2, 4, 0, Math.PI * 2);
+  ctx.fillStyle = "rgba(195, 47, 40, 0.2)";
+  ctx.fill();
+
+  // Registration marks echo a printed game sheet, rather than physical walls.
+  ctx.strokeStyle = SELF_COLOR;
+  ctx.lineWidth = 2;
+  for (const [x, y, dx, dy] of [
+    [12, 12, 1, 1],
+    [width - 12, 12, -1, 1],
+    [12, height - 12, 1, -1],
+    [width - 12, height - 12, -1, -1],
+  ]) {
+    ctx.beginPath();
+    ctx.moveTo(x, y + dy * 17);
+    ctx.lineTo(x, y);
+    ctx.lineTo(x + dx * 17, y);
     ctx.stroke();
   }
+  ctx.restore();
 }
 
-/**
- * drawPlayer(ctx, player, isMe)
- *
- * WHAT IT DOES: draws one player as a colored circle with their name
- * above it. If isMe is true, draws a thin highlight ring so you can find
- * yourself among several players.
- *
- * RECEIVES: ctx, player ({id, name, x, y, score}), isMe (boolean).
- * RETURNS: nothing.
- */
-function drawPlayer(ctx, player, isMe) {
-  const radius = 16;
+function canvasDisplayScale(canvas) {
+  const rect = canvas.getBoundingClientRect?.();
+  const width = rect?.width || canvas.clientWidth || canvas.width;
+  const height = rect?.height || canvas.clientHeight || canvas.height;
+  return Math.max(
+    0.35,
+    Math.min(1, width / canvas.width, height / canvas.height),
+  );
+}
 
-  // ==========================================================
-  // WORKSHOP EXERCISE #7
-  // ==========================================================
-  // The server does not send a "radius" for players -- it's a purely
-  // visual/client-side number. Try making radius grow with score, e.g.
-  //   const radius = 16 + player.score * 2;
-  // This is a good exercise for noticing the difference between DATA
-  // (score, which comes from the server) and PRESENTATION (radius, a
-  // choice this file makes about how to draw that data).
+function drawPlayer(
+  ctx,
+  player,
+  isMe,
+  displayScale = canvasDisplayScale(ctx.canvas),
+) {
+  // WORKSHOP EXERCISE #7: try changing this visual radius using player.score.
+  // The server's collision radius remains unchanged: data and display differ.
+  const radius = 16;
+  const color = isMe ? SELF_COLOR : colorForPlayer(player.id);
+  ctx.save();
+
+  if (isMe) {
+    ctx.beginPath();
+    ctx.arc(player.x, player.y, radius + 6, 0, Math.PI * 2);
+    ctx.strokeStyle = SELF_COLOR;
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash([3, 3]);
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 
   ctx.beginPath();
   ctx.arc(player.x, player.y, radius, 0, Math.PI * 2);
-  ctx.fillStyle = colorForPlayer(player.id);
+  ctx.fillStyle = color;
   ctx.fill();
+  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = ARENA_INK;
+  ctx.stroke();
 
-  if (isMe) {
-    ctx.lineWidth = 3;
-    ctx.strokeStyle = "#ffffff";
+  ctx.fillStyle = isMe ? ARENA_PAPER : ARENA_INK;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = '800 12px "DM Sans", sans-serif';
+  ctx.fillText(
+    (player.name || "?").slice(0, 1).toUpperCase(),
+    player.x,
+    player.y + 1,
+  );
+
+  // Size only the labels for the displayed canvas: game coordinates and player
+  // radii remain authoritative, while names stay legible on a small screen.
+  const label =
+    isMe && player.name.toLowerCase() === "you"
+      ? "YOU"
+      : player.name + (isMe ? " · YOU" : "");
+  const fontSize = Math.max(11, 9 / displayScale);
+  const labelPadding = Math.max(16, 8 / displayScale);
+  const labelHeight = Math.max(20, 18 / displayScale);
+  const edgePadding = Math.max(6, 3 / displayScale);
+  ctx.font = `${isMe ? "800" : "600"} ${fontSize}px "DM Sans", sans-serif`;
+  const labelWidth = Math.min(
+    ctx.measureText(label).width + labelPadding,
+    ctx.canvas.width - edgePadding * 2,
+  );
+  const labelX = Math.max(
+    edgePadding + labelWidth / 2,
+    Math.min(ctx.canvas.width - edgePadding - labelWidth / 2, player.x),
+  );
+  const labelOffset = radius + 7 / displayScale + labelHeight / 2;
+  const desiredY =
+    player.y < labelOffset + labelHeight / 2 + edgePadding
+      ? player.y + labelOffset
+      : player.y - labelOffset;
+  const labelY = Math.max(
+    labelHeight / 2 + edgePadding,
+    Math.min(ctx.canvas.height - labelHeight / 2 - edgePadding, desiredY),
+  );
+  ctx.fillStyle = isMe ? SELF_COLOR : ARENA_PAPER;
+  roundedPath(
+    ctx,
+    labelX - labelWidth / 2,
+    labelY - labelHeight / 2,
+    labelWidth,
+    labelHeight,
+    2 / displayScale,
+  );
+  ctx.fill();
+  if (!isMe) {
+    ctx.lineWidth = 1;
+    ctx.strokeStyle = "rgba(23,23,21,0.2)";
     ctx.stroke();
   }
-
-  ctx.fillStyle = "#e7ebf0";
-  ctx.font = "12px system-ui, sans-serif";
-  ctx.textAlign = "center";
-  ctx.fillText(player.name + (isMe ? " (you)" : ""), player.x, player.y - radius - 6);
+  ctx.fillStyle = isMe ? ARENA_PAPER : ARENA_INK;
+  ctx.fillText(label, labelX, labelY + 0.5, labelWidth - labelPadding);
+  ctx.restore();
 }
 
-/**
- * drawCoin(ctx, coin)
- *
- * WHAT IT DOES: draws one shared coin as a simple gold diamond.
- * RECEIVES: ctx, coin ({id, x, y}).
- * RETURNS: nothing.
- */
+/** Each coin in the protocol is presented as a small collectible crown. */
 function drawCoin(ctx, coin) {
-  const size = 12;
-
   ctx.save();
   ctx.translate(coin.x, coin.y);
-  ctx.rotate(Math.PI / 4);
-  ctx.fillStyle = "#f2c14e";
-  ctx.fillRect(-size / 2, -size / 2, size, size);
-  ctx.restore();
 
-  // ==========================================================
-  // WORKSHOP EXERCISE #3
-  // ==========================================================
-  ctx.fillStyle = "rgba(255,255,255,0.7)";
-  ctx.font = "10px system-ui, sans-serif";
+  // WORKSHOP EXERCISE #3: customize this crown's shape or color.
+  ctx.beginPath();
+  ctx.moveTo(-10, -6);
+  ctx.lineTo(-5, -1);
+  ctx.lineTo(0, -9);
+  ctx.lineTo(5, -1);
+  ctx.lineTo(10, -6);
+  ctx.lineTo(7, 7);
+  ctx.lineTo(-7, 7);
+  ctx.closePath();
+  ctx.fillStyle = "#efb827";
+  ctx.fill();
+  ctx.strokeStyle = ARENA_INK;
+  ctx.lineWidth = 1.8;
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(-6, 4);
+  ctx.lineTo(6, 4);
+  ctx.strokeStyle = ARENA_INK;
+  ctx.stroke();
+
+  // One little ink sparkle makes a crown read as a prize at phone size too.
+  ctx.beginPath();
+  ctx.moveTo(13, -13);
+  ctx.lineTo(13, -7);
+  ctx.moveTo(10, -10);
+  ctx.lineTo(16, -10);
+  ctx.lineWidth = 1.3;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawPickupEffect(ctx, effect, now) {
+  const progress = (now - effect.at) / 750;
+  ctx.save();
+  ctx.globalAlpha = 1 - progress;
+  ctx.strokeStyle = effect.mine ? SELF_COLOR : "#aa7500";
+  ctx.lineWidth = 2.5 * (1 - progress);
+  ctx.beginPath();
+  ctx.arc(effect.x, effect.y, 20 + progress * 30, 0, Math.PI * 2);
+  ctx.stroke();
+  for (let index = 0; index < 6; index++) {
+    const angle = (index * Math.PI) / 3;
+    const distance = 18 + progress * 34;
+    ctx.fillStyle = [SELF_COLOR, "#efb827", ARENA_INK][index % 3];
+    ctx.fillRect(
+      effect.x + Math.cos(angle) * distance - 1.5,
+      effect.y + Math.sin(angle) * distance - 1.5,
+      3,
+      3,
+    );
+  }
+  ctx.fillStyle = SELF_COLOR;
+  ctx.font = '800 16px "DM Sans", sans-serif';
   ctx.textAlign = "center";
-  ctx.fillText(coin.id.replace("coin-", "#"), coin.x, coin.y + size + 12);
+  const x = Math.max(20, Math.min(ctx.canvas.width - 20, effect.x));
+  const y = Math.max(20, effect.y - 25 - progress * 25);
+  ctx.fillText(`+${effect.amount}`, x, y);
+  ctx.restore();
+}
+
+function roundedPath(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.arcTo(x + width, y, x + width, y + height, radius);
+  ctx.arcTo(x + width, y + height, x, y + height, radius);
+  ctx.arcTo(x, y + height, x, y, radius);
+  ctx.arcTo(x, y, x + width, y, radius);
+  ctx.closePath();
 }

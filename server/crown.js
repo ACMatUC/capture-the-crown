@@ -10,22 +10,24 @@
 // "run the loop" rather than "also contain every detail about the coins."
 // ============================================================================
 
-const { ARENA_WIDTH, ARENA_HEIGHT, COIN_PICKUP_DISTANCE } = require("./constants");
+const { ARENA_WIDTH, ARENA_HEIGHT, COIN_RADIUS, COIN_PICKUP_DISTANCE } = require("./constants");
 
 /**
  * createCoin(id)
  *
- * WHAT IT DOES: returns a fresh coin object at a random position.
+ * WHAT IT DOES: returns a fresh coin object at a random position, with
+ * enough room at the arena edge to see and reach the whole crown.
  * WHY IT EXISTS: called once at server startup, and again every time a
  *   player collects the coin (respawning it elsewhere).
- * RECEIVES: nothing.
+ * RECEIVES: id (string), preserved when the coin respawns.
  * RETURNS: { id, x, y } object.
  */
 function createCoin(id) {
+  const inset = COIN_RADIUS + 8;
   return {
     id,
-    x: Math.random() * ARENA_WIDTH,
-    y: Math.random() * ARENA_HEIGHT,
+    x: inset + Math.random() * (ARENA_WIDTH - inset * 2),
+    y: inset + Math.random() * (ARENA_HEIGHT - inset * 2),
   };
 }
 

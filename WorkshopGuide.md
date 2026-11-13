@@ -55,7 +55,7 @@ On every client PC, open `public/index.html` in a modern browser. Enter:
 ws://SERVER_LAN_IP:3000
 ```
 
-Then enter a name and click **Connect & Join**. If the browser cannot connect,
+Then enter a name and click **Let me in**. If the browser cannot connect,
 check the IP, port, shared network, and firewall prompt on the server PC.
 
 ## The 30-minute run of show
@@ -109,7 +109,7 @@ release a movement key, then watch `state` arrive from the server.
 
 Open `public/strategy.js`. The starter `chooseDirection(state, me)` chooses
 the nearest coin from `state.coins` and returns a legal direction. After
-joining, enable **run my strategy code**. Your code now chooses the movement
+joining, check **Run my code**. Your code now chooses the movement
 requests sent to the server, so better decisions can produce more points.
 
 Try improving the strategy by:

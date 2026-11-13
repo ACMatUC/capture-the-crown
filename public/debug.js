@@ -36,6 +36,9 @@ const debugOverlay = {
    */
   refresh() {
     if (!this.enabled) return;
+    // Build payload previews only while the workshop tools are visible.
+    const tools = document.getElementById("workshopTools");
+    if (tools && !tools.open) return;
 
     const stats = getNetStats();
     const state = getLatestState();
@@ -46,8 +49,14 @@ const debugOverlay = {
     setText("dbgPlayers", state.players ? state.players.length : "\u2014");
     setText("dbgSent", stats.sent);
     setText("dbgReceived", stats.received);
-    setText("dbgLastSent", stats.lastSent ? JSON.stringify(stats.lastSent) : "\u2014");
-    setText("dbgLastReceived", stats.lastReceived ? JSON.stringify(stats.lastReceived) : "\u2014");
+    setText(
+      "dbgLastSent",
+      stats.lastSent ? JSON.stringify(stats.lastSent) : "\u2014",
+    );
+    setText(
+      "dbgLastReceived",
+      stats.lastReceived ? JSON.stringify(stats.lastReceived) : "\u2014",
+    );
 
     // ==========================================================
     // WORKSHOP EXERCISE #8

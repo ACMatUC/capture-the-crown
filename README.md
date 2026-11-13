@@ -1,214 +1,163 @@
 # Capture the Crown
 
-A tiny browser multiplayer game built for a Student Club General Body Meeting:
-members play together, learn real-time networking with WebSockets, and make a
-small visible code change. The "game" is deliberately simple (move a circle,
-collect one of ten visible coins, score a point) so beginners can focus on the
-idea and finish with something they can demo.
+A browser game for ACM@UC's networking workshop. Collect crowns to earn
+points and compete with the other players in the room.
 
-This version is a true LAN client-server workshop app:
+One computer runs the server. Players use a browser on the same local
+network.
 
-- One university PC runs the WebSocket server only.
-- Multiple university PCs open the browser client only.
-- The client never starts, embeds, or depends on a local server.
-- The server is the single authority for all shared game state.
-- All communication is WebSocket traffic to `ws://<SERVER_IP>:<PORT>`.
-- No cloud services, tunneling, NAT traversal, or peer-to-peer networking
-  are used.
+## Host: set up the game
 
-If you're organizing the event, start with **[WorkshopGuide.md](./WorkshopGuide.md)**.
-It contains the 30-minute agenda, facilitator prompts, individual build
-challenge, open-play competition rules, leaderboard procedure, setup
-checklist, and troubleshooting flow. This file covers the
-technical setup.
+You need Node.js 18 or newer, a copy of this repository, and a network that
+allows the players' computers to reach yours.
 
-## Requirements
+### 1. Start the server
 
-- [Node.js](https://nodejs.org/) 18 or newer on the server PC
-- Any modern browser on each client PC
-- All PCs connected to the same university network
-- One open LAN port, default `3000`
-- No database, no build tools, no bundler
+Open a terminal in the `capture-the-crown` folder:
 
-## Installation
-
-From the `capture-the-crown` folder on the server PC:
-
-```bash
+```sh
 npm install
-```
-
-This installs one runtime dependency:
-
-- `ws` — a minimal, raw WebSocket library for the Node.js server
-
-The client PCs only need the `public/` folder and a browser.
-
-## Starting The Server PC
-
-On exactly one PC, run:
-
-```bash
 npm start
 ```
 
-Optionally choose another port:
+Keep the terminal running during the game. The default port is `3000`.
 
-```bash
+### 2. Find your LAN address
+
+On Windows, run:
+
+```powershell
+ipconfig
+```
+
+Use the IPv4 address of the Wi-Fi or Ethernet adapter connected to the
+players' network. On macOS or Linux, find the active adapter's address in
+network settings.
+
+Give players the address in this format:
+
+```text
+ws://192.168.1.10:3000
+```
+
+Replace `192.168.1.10` with your computer's LAN address. `localhost` and
+`127.0.0.1` point to each player's own computer; `0.0.0.0` is the server's
+listen address, not an address to share.
+
+### 3. Give players the client files
+
+Share the **entire `public/` folder**, including its scripts, `assets/`, and
+`fonts/`. Have everyone follow the [client instructions](#clients-join-and-play)
+below.
+
+The server handles WebSocket connections only. It does not serve a webpage
+at `http://SERVER_IP:3000`. Players open the client files in their browsers.
+
+### Stop or reset the game
+
+Press **Ctrl+C** in the server terminal to stop it. Start it again with
+`npm start` and have everyone rejoin to begin a fresh game. Scores are kept
+in memory and are cleared when the server stops.
+
+### Use a different port
+
+In PowerShell:
+
+```powershell
+$env:PORT = "4000"
+npm start
+```
+
+In Bash:
+
+```sh
 PORT=4000 npm start
 ```
 
-The server binds to `0.0.0.0:<PORT>`, which means it listens on the
-server PC's LAN network interfaces. You should see:
+Players then connect to `ws://YOUR_LAN_IP:4000`. Use the same port on the
+server and every client.
 
-```text
-=================================================
- Capture the Crown -- WebSocket server
-=================================================
-Binding to ws://0.0.0.0:3000
-Clients must connect to ws://<SERVER_LAN_IP>:3000
-Use the server PC's LAN IP, not localhost or 127.0.0.1.
-Watch this terminal for SEND/RECV network logs.
-=================================================
- Server is listening for LAN WebSocket clients
-=================================================
-```
+## Clients: join and play
 
-Find the server PC's LAN IP address, such as `10.x.x.x` or
-`192.168.x.x`. Do not give students `localhost` or `127.0.0.1`; those
-addresses point back at each student's own machine.
+You need the `public/` folder and a modern browser. You do not need Node.js
+or npm on your computer.
 
-For the recommended club meeting, start the server before members arrive,
-keep this terminal visible, and have two or three test browsers ready. The
-first activity is to play for a few minutes before opening the code.
+1. Connect to the same local network as the host.
+2. Open `public/index.html` in your browser. Keep the other files and
+   subfolders alongside it.
+3. Enter your name, up to 16 characters.
+4. Enter the host's `ws://...` address in **Server address**.
+5. Click **Let me in**.
 
-## Starting Client PCs
+Everyone uses the same server address. The field shown before you join is
+an illustrated preview.
 
-On each client PC:
+### Controls and scoring
 
-1. Copy or open the `public/index.html` file in a browser.
-2. In the server address field, enter `ws://<SERVER_IP>:<PORT>`.
-3. Enter a player name.
-4. Click **Connect & Join**.
+- Move with **WASD**, **arrow keys**, or the on-screen direction buttons.
+- Your player has a red ring and a **YOU** label.
+- Touch a gold crown to earn one point. It respawns somewhere else; there
+  are always ten crowns on the field.
+- The highest score leads. Equal scores share a rank. The host calls the
+  start and finish of a competition.
+- On phones, tap **Standings** to see the full leaderboard.
+- Open **How to play** or **Rules** for the controls during a game.
 
-Example:
+Leaving, refreshing, or losing your connection ends your current run.
+Joining again creates a new player with a score of zero.
 
-```text
-ws://10.25.14.83:3000
-```
+### Play with your strategy code
 
-Every client connects directly to the same server PC over the university
-LAN. Clients can be opened before the server starts; they will show
-`disconnected` until the server is running and the student clicks
-**Connect & Join** again.
+1. Edit `chooseDirection(state, me)` in `public/strategy.js`. Return `dx`
+   and `dy`, each set to `-1`, `0`, or `1`.
+2. Save the file, refresh your browser, and rejoin.
+3. Check **Run my code**. Uncheck it to return to manual controls.
 
-### Recommended 30-minute GBM sequence
+Your code chooses a direction. The server still controls movement,
+pickups, and scores.
 
-1. **Play (0-3 min):** connect everyone and let them chase the crown.
-2. **Reveal (3-11 min):** use the debug panel to show `input` and `state`
-   messages, then trace one key press through the client and server.
-3. **Build (11-19 min):** edit `public/strategy.js` to make the player
-   navigate toward crowns automatically. Members can still customize
-   `public/renderer.js` for appearance.
-4. **Code freeze (19-20 min):** save, refresh, and stop editing.
-5. **Crown Clash (20-27 min):** open play; the live ranked leaderboard decides
-   the standings. The facilitator announces start and stop.
-6. **Awards (27-30 min):** recognize the top scorer, creative builds, and
-   helpful teammates; share one takeaway.
+### View the network messages
 
-### Competition checklist
+Open **Watch the messages** to see outgoing requests, incoming game state,
+and live coordinates. Movement pauses while the lab or a guide is open,
+and when you switch away from the window.
 
-- Announce the code freeze before the competition starts.
-- Have everyone refresh or reconnect with their final build.
-- Use the **Leaderboard** panel as the official score source.
-- Equal scores share a rank.
-- Announce the final standings and optional awards.
-- To reset for a new event, stop and restart `npm start`, then reconnect all
-  clients. Scores are held in server memory and do not persist across restarts.
-
-You can also prefill the server field with a query string:
-
-```text
-public/index.html?server=ws://10.25.14.83:3000
-```
-
-## Project Structure
-
-```text
-capture-the-crown/
-  package.json          npm metadata + server dependency
-  README.md             this file
-  WorkshopGuide.md      concepts, timeline, and exercise walkthroughs
-
-  server/               everything that runs on the server PC in Node.js
-    server.js           entry point: starts the WebSocket server on 0.0.0.0
-    networking.js       WebSocket connection handling, message routing
-    game.js             the authoritative game loop (20 ticks/second)
-    protocol.js         documents & validates every message type
-    player.js           player data + movement
-    crown.js            coin data + pickup detection
-    constants.js        tunable numbers (speed, tick rate, arena size)
-
-  public/               browser-only client files for each client PC
-    index.html          page structure (server field + join/game screens)
-    styles.css          visual styling
-    main.js             wires all client files together
-    networking.js       owns the browser's WebSocket connection
-    input.js            keyboard -> "input" messages
-    strategy.js         member-authored movement strategy
-    renderer.js         draws the current state onto <canvas>
-    debug.js            the on-page network debug panel
-```
+The lab's clock difference compares timestamps from two computers. It is
+not a round-trip ping measurement.
 
 ## Troubleshooting
 
-**Client shows "disconnected" and never joins**
-Confirm the server terminal says it is listening. Check that the client
-entered the server PC's LAN IP and the same port, for example
-`ws://10.25.14.83:3000`.
+| Problem | What to check |
+| --- | --- |
+| Connection fails or times out | The host's server is running, the address and port match, and both computers are on the same LAN. |
+| Only some players can connect | Check the host's firewall and whether the network blocks traffic between devices. Ask the host to resolve network access. |
+| Port 3000 is already in use | The host can choose [a different port](#use-a-different-port) and share the updated address. |
+| Movement is unusually slow or jumpy | Check `TICK_RATE` in `server/constants.js`; the default is 20 updates per second. |
+| A code change does not appear | Refresh for changes in `public/`. Restart the server for changes in `server/`. |
 
-**A student used localhost**
-That will not connect to the workshop server. `localhost` and
-`127.0.0.1` always mean "this same computer," so on a client PC they point
-at the client PC, not the server PC.
+## Workshop and development
 
-**Port 3000 already in use on the server PC**
-Start the server on a different port:
+See [WorkshopGuide.md](WorkshopGuide.md) for the meeting agenda and coding
+exercises.
 
-```bash
-PORT=4000 npm start
+| Location | Contents |
+| --- | --- |
+| `server/` | WebSocket server, movement, scoring, and message validation |
+| `public/` | Browser client, controls, rendering, strategy, and local assets |
+| `tests/` | Input, networking, rendering, and game-rule checks |
+
+Run the checks from the repository root:
+
+```sh
+npm test
+npm run test:lan
 ```
 
-Then clients must enter the matching address, such as
-`ws://10.25.14.83:4000`.
+The LAN test starts and stops its own server on a temporary loopback port.
+It does not connect to or reset a running workshop game.
 
-**Some clients connect and others do not**
-Make sure every client is on the same university network and is using the
-same `ws://<SERVER_IP>:<PORT>` address. Also check whether the server PC's
-local firewall asks for permission to allow incoming connections.
+## Credits
 
-**Movement feels laggy**
-This can be a genuinely useful teaching moment: check
-`server/constants.js`'s `TICK_RATE`. If someone changed it low during
-Workshop Exercise #5 and forgot to change it back, that's why.
-
-**I changed server code but nothing happened**
-The Node.js server does not hot-reload. Stop it with `Ctrl+C` in its
-terminal and run `npm start` again after any change to files inside
-`server/`. Changes to files inside `public/` only need a browser refresh.
-
-## Code-powered competition
-
-Members can make their code affect their Crown Clash result without giving
-the browser authority over the game. Each client includes `public/strategy.js`,
-where `chooseDirection(state, me)` returns a direction toward a coin. The
-strategy receives all player locations and all ten coin locations, so it can
-choose targets, avoid traffic, and plan routes. Turn on **run my strategy
-code** after joining to use it instead of the keyboard.
-
-The strategy receives the latest server snapshot and may only request
-`dx`/`dy` values of `-1`, `0`, or `1`. The server still applies movement,
-checks coin collisions, respawns only the collected coin, and awards points.
-A strategy cannot claim a position, change a score, or affect another player.
-This keeps the result competitive while making a member's code materially
-important.
+Interface references: [Frontend Slides](https://github.com/zarazhangrui/frontend-slides)
+and the [ACM@UC workshop slides](https://ucai2026secondbrainworkshop.myaiworkspace2026.workers.dev/).
+Bundled fonts and their licenses are listed in [public/fonts/README.md](public/fonts/README.md).
