@@ -1,0 +1,7 @@
+node_modules/
+dist/
+coverage/
+package-lock.json
+LICENSE.md
+public/fonts/*
+!public/fonts/README.md

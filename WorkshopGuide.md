@@ -1,243 +1,127 @@
-# Capture the Crown: 30-Minute Club GBM
+# Capture the Crown: workshop guide
 
-This is a play-first, beginner-friendly General Body Meeting for a student
-club. Members will play a tiny multiplayer game, learn how browsers and
-servers communicate in real time, and make one visible code change they can
-demo before leaving.
+A 30-minute ACM@UC meeting for up to 32 players: play together, trace a network message, edit a
+strategy, then compete. Members need a browser and a text editor. The host
+needs Node.js 24 or newer.
 
-The project is intentionally small: one Node.js server, several browser
-clients, and raw WebSocket messages. No database, framework, or cloud account
-is needed.
+## Before the meeting
 
-## What members should leave knowing
+1. Connect the host and players to a network that allows device-to-device traffic.
+2. On the host, run `npm ci`, `npm run build`, then `npm start`.
+3. Find the host's LAN IPv4 address with `ipconfig` on Windows or network settings
+   on macOS/Linux. Share `ws://HOST_LAN_IP:3000`.
+4. Give each player a copy of the **entire `dist/client/` folder**. They open its
+   `index.html`, enter a name and the shared address, then click **Let me in**.
+5. Test with two computers before the meeting. Check firewall access and whether
+   the Wi-Fi permits connections between devices.
 
-By the end, a member should be able to:
+Keep the server terminal running. Players do not need Node or npm. See the
+[README](README.md) for full host setup, client instructions, and troubleshooting.
 
-1. Explain the difference between a browser client and the authoritative
-   server.
-2. Point to a client-to-server `input` message and a server-to-client `state`
-   message.
-3. Make and demo a small visual change in `public/renderer.js`.
+## Run of show
 
-No previous networking experience is required. Basic JavaScript familiarity is
-helpful, but the activity is designed so members can copy a starter change and
-then experiment.
+| Time      | Activity                                                                             |
+| --------- | ------------------------------------------------------------------------------------ |
+| 0–3 min   | Join and play. Find your red player and collect a crown.                             |
+| 3–7 min   | Open **Watch the messages**. Explain client, server, WebSocket, and JSON.            |
+| 7–11 min  | Trace a key press through input, the server tick, and the canvas renderer.           |
+| 11–19 min | Edit `strategy.js`, refresh, rejoin, and enable **Run my code**.                     |
+| 19–20 min | Save and freeze edits. Restart the server and have everyone rejoin for fresh scores. |
+| 20–27 min | Run the competition. The facilitator calls the start and finish.                     |
+| 27–30 min | Read the standings and ask members how their strategies work.                        |
 
-## Before the GBM
+If joining takes longer, shorten the source walkthrough to protect the coding time.
 
-### Organizer checklist
+## Trace one move
 
-- Choose one laptop as the server PC and connect every laptop to the same LAN.
-- Install Node.js 18+ on the server PC.
-- Clone or copy this repository to the server PC.
-- Run `npm install` once.
-- Find the server PC's LAN IP address. Do not use `localhost`.
-- Bring one backup copy of the project and a screenshot of the expected game.
-- If the university network blocks device-to-device traffic, use a small
-  private hotspot/router approved by your club or IT policy.
-
-### Start the server
-
-On the server PC:
-
-```bash
-npm install
-npm start
-```
-
-The terminal prints the port and reminds you to use the server PC's LAN IP.
-Keep this terminal visible: its `[SEND]` and `[RECV]` logs are useful teaching
-material.
-
-On every client PC, open `public/index.html` in a modern browser. Enter:
-
-```text
-ws://SERVER_LAN_IP:3000
-```
-
-Then enter a name and click **Let me in**. If the browser cannot connect,
-check the IP, port, shared network, and firewall prompt on the server PC.
-
-## The 30-minute run of show
-
-| Time | Activity | Facilitator move |
-|---|---|---|
-| 0-3 min | Welcome and play | Put members in the arena immediately. Ask, “What do you think is happening between these screens?” |
-| 3-7 min | Two-minute networking reveal | Explain client, server, WebSocket, and JSON using the live debug panel. Avoid a long lecture. |
-| 7-11 min | Trace one move | Open `public/input.js`, `server/networking.js`, `server/game.js`, and `public/renderer.js`. Follow one key press to one visible move. |
-| 11-19 min | Individual build challenge | Members edit `public/strategy.js`, enable strategy mode, and test whether their code reaches crowns faster; optional visual changes stay in `public/renderer.js`. |
-| 19-20 min | Code freeze | Ask everyone to save, refresh, and stop editing. Announce that the competition leaderboard is now live. |
-| 20-27 min | Open-play competition | Members chase crowns. Call out the leaderboard, encourage fair play, and announce the final standings at the end. |
-| 27-30 min | Awards and takeaway | Recognize the top scorer and creative builds, then re-state server authority and collect next-feature ideas. |
-
-If setup takes longer, skip the file walkthrough before skipping build time.
-The best GBM outcome is that every member gets a working result and a chance
-to compete with it.
-
-## The live explanation
-
-Use the game to explain three ideas:
-
-### 1. The client asks; the server decides
-
-When a member presses a key, `public/input.js` sends a small message such as:
+The browser requests a direction:
 
 ```json
 { "type": "input", "dx": 1, "dy": 0 }
 ```
 
-It does not send a new position or score. The server applies the request in
-its fixed tick loop. This prevents a client from claiming an impossible
-position or score.
+`client/input.ts` reads controls. `client/networking.ts` sends the message.
+`shared/protocol.ts` validates messages on both sides. `server/networking.ts`
+accepts the request, and `server/game.ts` applies it on the next tick.
 
-### 2. The server broadcasts the shared state
+The server runs at 20 ticks per second. Each tick moves players, checks crown
+pickups, and broadcasts a `state` message. `client/renderer.ts` draws that
+state. The server owns positions and scores; browsers request movement.
 
-About 20 times per second, `server/game.js` moves players, checks all ten
-coins, and broadcasts a `state` message containing every player's position
-and score plus every coin's position. Each browser draws the latest state.
-That is why everyone sees the same coins and players.
+Open **Watch the messages** to inspect the last sent and received JSON. Turn
+off **Live updates** to hold a message on screen. Movement pauses while a
+dialog is open. The clock difference includes differences between the two
+computers' clocks; it is not round-trip ping.
 
-### 3. Network traffic is observable
+For terminal-level message logging, restart the host server with
+`DEBUG_NETWORK=1`. In PowerShell:
 
-The **Network Debug** panel shows the connection, ping, message counters, and
-last JSON messages. Ask members to watch `input` appear when they press or
-release a movement key, then watch `state` arrive from the server.
-
-## Individual build challenge
-
-### Competition starter: write a coin-chasing strategy
-
-Open `public/strategy.js`. The starter `chooseDirection(state, me)` chooses
-the nearest coin from `state.coins` and returns a legal direction. After
-joining, check **Run my code**. Your code now chooses the movement
-requests sent to the server, so better decisions can produce more points.
-
-Try improving the strategy by:
-
-- Choosing horizontal or vertical movement based on which distance is larger.
-- Avoiding another player when they are closer to a coin.
-- Choosing a safer coin instead of always choosing the nearest one.
-
-The strategy can inspect state, but it can only return `{ dx, dy }`, with each
-value in `-1`, `0`, or `1`. The server remains authoritative: it decides the
-actual movement, collision, and score. Do not edit the server or send fake
-positions/scores during the competition.
-
-### Starter: make score visible on the player
-
-Open `public/renderer.js` and find `drawPlayer`. Replace:
-
-```js
-const radius = 16;
+```powershell
+$env:DEBUG_NETWORK = "1"
+npm start
 ```
 
-with:
+## Coding challenge: chase crowns
+
+Players edit `strategy.js` beside the `index.html` in their own client folder.
+The starter `chooseDirection(state, me)` heads toward the nearest crown.
+Return an object with `dx` and `dy`, each one of `-1`, `0`, or `1`:
 
 ```js
-const radius = 16 + player.score * 2;
+return { dx: 1, dy: 0 }; // right
 ```
 
-Refresh the page and collect a coin. The player grows because `score` is
-server data, while the radius is a client-side drawing choice.
+`me` contains your player's position and score. `state.players` contains all
+players, and `state.coins` contains the ten crowns with their IDs and positions.
+Each crown you touch earns one point and respawns elsewhere.
 
-### Personalize it
+Try a change:
 
-Members can then choose one:
+- Choose a crown another player is less likely to reach first.
+- Compare horizontal, vertical, and diagonal routes.
+- Keep chasing one target until it respawns instead of changing targets every tick.
 
-- Give each score level a different color.
-- Draw a ring around players with a score above zero.
-- Add a “COIN!” label when a player is close to a coin.
-- Change the grid, coin shape, or player name styling.
+Save, refresh, rejoin, then check **Run my code**. Uncheck it to return to
+manual controls. Invalid return values or thrown errors stop movement and show
+an error beside the strategy control. The server still decides movement and
+scoring.
 
-Keep strategy changes in `public/strategy.js` and visual changes in
-`public/renderer.js`. Browser-only changes need a refresh, not a server
-restart. Each member should use their own final copy of these files.
+## Optional: change the game from source
 
-### Optional stretch challenges
+These exercises need a repository copy and Node.js 24+. Run `npm ci`, then
+`npm run dev:server` and `npm run dev` in separate terminals. Open the address
+Vite prints. Use localhost on the server PC, or its LAN/VPN address on another device.
 
-For members who finish early:
+| Change                                        | File                                               |
+| --------------------------------------------- | -------------------------------------------------- |
+| Player colors, crown shapes, or canvas labels | `client/renderer.ts`                               |
+| Interface text and panels                     | `client/components/`                               |
+| Layout and typography                         | `client/styles.css`                                |
+| Strategy copied into the build                | `public/strategy.js`                               |
+| Tick rate or arena settings                   | `server/constants.ts`                              |
+| A new message type                            | `shared/protocol.ts`, then its sender and receiver |
 
-- Add an “arena size” row to the debug panel using the values in `welcome`.
-- Add a message-size metric to `public/debug.js`.
-- Change `TICK_RATE` in `server/constants.js` to `2`, observe the lag, then
-  restore it to `20`.
-- Add a new field to the `state` message in `server/game.js` and display it.
+Client changes update through Vite. Server changes restart the development
+server and reset scores. Run `npm run check` after source changes, and
+`npm run build` before distributing the updated `dist/client/` folder.
+Keep edits to the distributed `strategy.js` outside that build folder before
+rebuilding; a build replaces its contents.
 
-## Competition finale: Crown Clash
+## Competition
 
-After the build challenge, run a short open-play competition. The app does not
-enforce a timer; the facilitator announces when the competition starts and
-stops. This keeps the rules simple and lets the club adjust the play window
-to the room.
+1. Save and freeze code changes.
+2. Restart the host server, then have everyone refresh and rejoin. Scores start at zero.
+3. Announce the start. Manual controls and strategies both count.
+4. Announce the finish and have everyone stop. Read the live standings together.
 
-### Competition procedure
+Equal scores share a rank. The game has no round timer, so the facilitator
+sets the play window. Recognize the top score, an interesting strategy, and
+someone who helped another player get connected.
 
-1. **Freeze the code:** everyone saves their strategy and rendering files and
-   stops editing. Record which client copy belongs to each player.
-2. **Refresh clients:** each member refreshes their browser. If a browser
-   disconnected, reconnect it with the same server address and name.
-3. **Start the call:** say “Crown Clash starts now.” The live **Leaderboard**
-   shows each player's rank and crown count.
-4. **Play fairly:** no changing code during the round, no unplugging another
-   player's laptop, and no claiming a crown without the server showing the
-   score change. Strategies may request movement only; the server rejects
-   invalid directions and owns positions and scores.
-5. **Stop together:** announce “last crown,” allow the current movement to
-   finish, then read the leaderboard aloud.
+## Questions for the room
 
-The leaderboard is sorted by crowns collected. Equal scores share a rank.
-Use the live leaderboard at the end as the official result. If the club wants
-a completely fresh event, stop and restart the server before reconnecting;
-the server's in-memory scores and leaderboard then start at zero.
-
-### Recognition ideas
-
-- **Crown Champion:** highest score.
-- **Fastest Learner:** best explanation of the client/server message flow.
-- **Best Build:** most creative visual change.
-- **Good Sport:** helpful, respectful competition.
-
-Keep the competition about celebrating participation, not only winning. A
-member who finishes with zero crowns but can explain why the server is
-authoritative still achieved the learning goal.
-
-## Facilitator prompts
-
-Use questions rather than a lecture:
-
-- “Which computer knows the real score?”
-- “What would happen if the browser sent `score: 999`?”
-- “Why does the screen freeze when the server stops?”
-- “Which parts of your change are data, and which are presentation?”
-- “How does your strategy decide where to move next?”
-- “What can the server prevent your strategy from changing?”
-- “Who is currently #1, and what message made that score visible?”
-- “Why should we freeze code before comparing leaderboard scores?”
-- “What message would we need to add for a chat feature?”
-
-When someone is stuck, ask them to:
-
-1. Make one small change.
-2. Save the file.
-3. Refresh the browser.
-4. Read the browser console and the server terminal.
-5. Compare the last `SEND` and `RECV` messages.
-
-## Troubleshooting during the event
-
-- **Disconnected:** use `ws://SERVER_LAN_IP:3000`, not `localhost`.
-- **Only some members connect:** confirm the same Wi-Fi/LAN and approve the
-  server firewall prompt.
-- **A server change does nothing:** stop with `Ctrl+C`, then run `npm start`
-  again. Browser-only changes need a refresh.
-- **Everyone sees a frozen game:** check that the server terminal is still
-  running.
-- **Members cannot edit locally:** give them a copy of the repository or
-  have them work in a shared editor while the organizer demonstrates.
-
-## Closing
-
-Ask each member to share one change or one networking idea they learned.
-Invite interested members to turn the next meeting into a feature sprint:
-teams can add power-ups, a countdown, chat, or a new message type while
-keeping the server as the authority.
+- Which computer knows the real score?
+- Why does the client send a direction instead of a new position?
+- What happens when two players reach the same crown?
+- How does your strategy choose its next target?
+- What would change if the server tick rate were two instead of twenty?
